@@ -29,7 +29,7 @@ jobs:
           grep -q "${GITHUB_REF_NAME}" build/day-wheel-card.js
 
       - name: Publier la release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: build/day-wheel-card.js
           generate_release_notes: true
