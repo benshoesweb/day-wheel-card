@@ -1,0 +1,149 @@
+name: 🐞 Signaler un bug (Bug report)
+description: La carte ne fonctionne pas comme prévu. (Something doesn't work as expected.)
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de prendre le temps de signaler ce problème ! Plus les informations sont précises, plus la correction sera rapide.
+        *Thanks for reporting! English is welcome too.*
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Vérifications (Checks)
+      options:
+        - label: J'utilise la dernière version de la carte. (I'm on the latest version.)
+          required: true
+        - label: J'ai vidé le cache du navigateur / de l'application (Ctrl+F5). (I cleared the browser/app cache.)
+          required: true
+        - label: J'ai cherché dans les tickets existants, ce problème n'y est pas. (I searched existing issues.)
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description du problème (What happened?)
+      description: Que se passe-t-il ? Que devrait-il se passer à la place ?
+      placeholder: "Ex. : quand je fais glisser la fin d'une plage du planning, elle revient à sa place…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Étapes pour reproduire (Steps to reproduce)
+      placeholder: |
+        1. Toucher la plage 06:30 – 08:00 du chauffage
+        2. Faire glisser sa fin vers 09:00
+        3. …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Partie concernée (Affected part)
+      multiple: true
+      options:
+        - Plannings (schedule) — affichage
+        - Plannings (schedule) — modification
+        - Heures (input_datetime, time, capteur)
+        - Calendriers
+        - Soleil, aiguille, centre
+        - Jours de la semaine
+        - Thème
+        - Éditeur visuel
+        - Autre
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration de la carte (Card YAML)
+      description: Dans l'éditeur, « Afficher l'éditeur de code », puis copiez tout. Pensez à masquer les informations personnelles.
+      render: yaml
+      placeholder: |
+        type: custom:day-wheel-card
+        layers:
+          - entity: schedule.chauffage
+    validations:
+      required: true
+
+  - type: input
+    id: card_version
+    attributes:
+      label: Version de la carte (Card version)
+      description: Affichée dans la console du navigateur (F12) « DAY-WHEEL-CARD vX.Y.Z », ou dans la Marketplace / HACS.
+      placeholder: v1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: ha_version
+    attributes:
+      label: Version de Home Assistant (Home Assistant version)
+      description: Paramètres › À propos.
+      placeholder: "2026.11.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installation
+      options:
+        - Marketplace (Home Assistant 2026.11+)
+        - HACS
+        - Manuelle (fichier dans /config/www)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Appareil / navigateur (Device / browser)
+      multiple: true
+      options:
+        - Chrome / Edge (ordinateur)
+        - Firefox (ordinateur)
+        - Safari (Mac)
+        - Application Home Assistant Android
+        - Application Home Assistant iOS / iPadOS
+        - Tablette ou écran mural (navigateur kiosque, Fully Kiosk, TouchKio…)
+        - Autre
+    validations:
+      required: true
+
+  - type: dropdown
+    id: input
+    attributes:
+      label: Utilisation (Input)
+      multiple: true
+      options:
+        - Écran tactile (doigt)
+        - Souris
+        - Clavier
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Erreurs de la console (Console errors)
+      description: "F12 › onglet « Console » : copiez les lignes en rouge, s'il y en a."
+      render: shell
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Captures d'écran ou vidéo (Screenshots / video)
+      description: Glissez-déposez vos images ici. Une courte vidéo aide beaucoup pour les problèmes d'animation ou de tactile.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Informations complémentaires (Additional context)
+      description: Thème Home Assistant utilisé, autres cartes sur la même vue (Bubble Card, card-mod / UIX…), etc.

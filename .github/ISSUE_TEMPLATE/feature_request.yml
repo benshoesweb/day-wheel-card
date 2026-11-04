@@ -1,0 +1,67 @@
+name: 💡 Proposer une amélioration (Feature request)
+description: Une idée de nouvelle fonction ou d'amélioration. (Suggest an idea or improvement.)
+title: "[Idée] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci pour votre idée ! Décrivez surtout **le besoin** : c'est ce qui aide le plus à trouver la bonne solution.
+        *English is welcome too.*
+
+  - type: textarea
+    id: need
+    attributes:
+      label: Votre besoin (What problem would this solve?)
+      description: Qu'est-ce qui manque ou vous gêne aujourd'hui ?
+      placeholder: "Ex. : j'aimerais voir les horaires de mes volets sur le cadran…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution souhaitée (Proposed solution)
+      description: Comment imaginez-vous la fonction ? Quels réglages dans l'éditeur ou en YAML ?
+      placeholder: |
+        Ex. : un anneau pour les automatisations à heure fixe, avec l'heure modifiable au doigt.
+        Option YAML : `cover_slider: true`
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Partie concernée (Area)
+      multiple: true
+      options:
+        - Cercle et zones tactiles
+        - Variateur
+        - Boutons de coin
+        - Ligne de boutons
+        - Thèmes du bouton
+        - Animations d'ouverture
+        - Éditeur visuel
+        - Nouveau type d'entité (volets, climatisation, média…)
+        - Autre
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées (Alternatives considered)
+      description: Avez-vous essayé une autre carte ou un contournement ?
+
+  - type: textarea
+    id: mockup
+    attributes:
+      label: Maquette, capture ou exemple (Mockup / example)
+      description: Un croquis, une capture d'une autre carte ou une vidéo aide beaucoup. Glissez-déposez vos images ici.
+
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Participation (Contribution)
+      options:
+        - label: Je peux aider à tester une version de développement. (I can help test a pre-release.)

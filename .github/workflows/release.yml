@@ -1,0 +1,36 @@
+# Publication automatique : pousser un tag vX.Y.Z crée la release GitHub,
+# avec le fichier de la carte (numéro de version inclus) en pièce jointe.
+# La Marketplace / HACS installe ce fichier ; un tag avec un tiret (v1.2.0-beta.1)
+# est publié comme pré-version.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Vérifier la syntaxe
+        run: node --check dist/day-wheel-card.js
+
+      - name: Préparer le fichier de la version
+        run: |
+          mkdir -p build
+          sed "s/__VERSION__/${GITHUB_REF_NAME}/" dist/day-wheel-card.js > build/day-wheel-card.js
+          node --check build/day-wheel-card.js
+          grep -q "${GITHUB_REF_NAME}" build/day-wheel-card.js
+
+      - name: Publier la release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/day-wheel-card.js
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

@@ -1,0 +1,31 @@
+# Teste la carte dans un vrai Chrome (sans interface) à chaque push et pull request :
+# souris, doigt, plannings, heures, calendriers, éditeur… (node tests/run.js)
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Carte et éditeur
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Installation
+        run: npm ci --no-audit --no-fund
+      - name: Navigateur Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Syntaxe
+        run: npm run check
+      - name: Tests
+        run: npm test

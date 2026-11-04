@@ -1,0 +1,32 @@
+# Vérifie le dépôt avec l'action officielle HACS (la même que le catalogue de la Marketplace)
+# et la syntaxe de la carte, à chaque push, chaque pull request et chaque nuit.
+name: Validate
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  validate-hacs:
+    name: HACS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validation HACS / Marketplace
+        uses: hacs/action@main
+        with:
+          category: plugin
+
+  validate-js:
+    name: Syntaxe JavaScript
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: node --check
+        run: node --check dist/day-wheel-card.js

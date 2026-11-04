@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation et options de la carte
+    url: https://github.com/benshoesweb/day-wheel-card#configuration
+    about: Toutes les options (YAML et éditeur visuel) avec des exemples.
+  - name: 📦 Dernière version
+    url: https://github.com/benshoesweb/day-wheel-card/releases/latest
+    about: Notes de version et fichier de la carte.
