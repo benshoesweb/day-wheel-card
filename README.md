@@ -44,10 +44,16 @@ Les plages ne se chevauchent jamais et s'arrêtent à minuit, comme dans l'édit
 
 ## Installation
 
-### Marketplace (Home Assistant 2026.10 et plus) ou HACS
+### Marketplace (recommandé)
 
-Cliquez sur le bouton **Ouvrir dans Home Assistant** ci-dessus, ou ajoutez ce dépôt comme dépôt personnalisé, catégorie **Dashboard** :
-`https://github.com/benshoesweb/day-wheel-card`
+La carte fait partie du catalogue officiel de HACS, intégré à Home Assistant depuis la version 2026.11 :
+
+- **Home Assistant 2026.11 et plus** : **Paramètres › Marketplace**, cherchez « Day Wheel Card », puis **Télécharger**.
+- **Versions précédentes, avec HACS installé** : **HACS**, cherchez « Day Wheel Card », puis **Télécharger**.
+
+Le bouton **Ouvrir dans Home Assistant** ci-dessus mène directement à la carte. La ressource du tableau de bord est ajoutée automatiquement, et les nouvelles versions sont proposées en mise à jour.
+
+Compatibilité : testée avec Home Assistant 2026.11 (plannings, calendriers, heures et éditeur).
 
 ### Manuelle
 
@@ -124,7 +130,7 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 - **Follows the Home Assistant theme**: with `knob_theme: ha`, the whole dial (face, empty rings, ticks, day / night ring, center, hand) uses the active theme's colors, and `palette: theme` gives the rings the theme's colors (primary, success, warning, info, error, accent). Theme changes apply instantly; a ring's own `color` still wins.
 - Editing schedules requires an **administrator** (Home Assistant rule); YAML-defined schedules can't be read by cards, create them under **Settings › Devices & services › Helpers › Schedule**.
 
-Install it from the Marketplace / HACS with the **Open in Home Assistant** button above, then add the card from the dashboard editor. The options table above lists the YAML keys.
+**Install**: the card is in the official HACS catalog, built into Home Assistant since 2026.11 — **Settings › Marketplace**, search for "Day Wheel Card" (on older versions: **HACS**). The **Open in Home Assistant** button above leads straight to it. Then add the card from the dashboard editor; the options table above lists the YAML keys. Tested with Home Assistant 2026.11.
 
 ## Développement
 
@@ -138,4 +144,8 @@ Les tests tournent aussi sur GitHub à chaque modification (workflow **Tests**).
 
 ## Publier une nouvelle version
 
-Modifiez `dist/day-wheel-card.js`, puis créez une release GitHub (ou `./scripts/release.sh v1.1.0`). Le workflow **Release** y ajoute le fichier de la carte ; la Marketplace la propose ensuite en mise à jour. Pour entrer dans le catalogue par défaut de HACS : `./scripts/submit-to-hacs-default.sh`.
+1. Modifiez `dist/day-wheel-card.js` et notez le changement dans [CHANGELOG.md](CHANGELOG.md), en français et en anglais, sous « Non publié ».
+2. Passez la section « Non publié » au numéro de version (et `package.json`), puis fusionnez dans `main`.
+3. **Ensuite seulement**, créez la release GitHub `vX.Y.Z` sur `main` (ou `./scripts/release.sh vX.Y.Z`) : le tag contient alors le bon CHANGELOG.
+
+Le workflow **Release** joint le fichier de la carte à la release ; la Marketplace la propose ensuite en mise à jour. La carte est déjà dans le catalogue officiel de HACS : il n'y a plus de demande à faire.
