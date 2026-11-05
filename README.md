@@ -23,6 +23,7 @@ Roue des 24 heures pour les tableaux de bord Home Assistant : vos plannings, ré
 - **Heure du serveur** : le cadran suit le fuseau de Home Assistant, pas celui de la tablette.
 - Mises à jour **en direct** : un planning modifié ailleurs se redessine aussitôt.
 - **7 styles de centre** (métal, thème Home Assistant, verre, doux, laiton, carbone, néon), midi ou minuit en haut, **retour haptique**, thème clair ou sombre.
+- **Suit le thème Home Assistant** : avec le style `ha`, tout le cadran (fond, anneaux vides, graduations, couronne jour / nuit, centre, aiguille) prend les couleurs du thème actif, et `palette: theme` donne aux anneaux les couleurs du thème. Le changement de thème est immédiat.
 - **Éditeur visuel complet** en français ou en anglais.
 
 ## Modifier un planning
@@ -82,10 +83,32 @@ layers:
 | `show_days` | jours de la semaine (avec un planning ou un calendrier) | `true` |
 | `show_legend` | légende sous le cadran | `true` |
 | `haptics` | retour haptique au doigt | `true` |
-| `knob_theme` | `metal`, `ha`, `glass`, `neumorph`, `brass`, `carbon`, `neon` | `metal` |
+| `knob_theme` | `metal`, `ha` (tout le cadran aux couleurs du thème), `glass`, `neumorph`, `brass`, `carbon`, `neon` | `metal` |
+| `palette` | couleurs des anneaux sans couleur choisie : `default` (palette de la carte) ou `theme` (couleurs du thème : principale, succès, avertissement, info, erreur, accent) | `default` |
 | `theme` | `auto`, `light`, `dark` | `auto` |
 
 ![Thème clair](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/apercu-clair.png)
+
+### Suivre le thème Home Assistant
+
+Pour que toute la carte change avec ton thème, choisis dans l'éditeur **Style du centre : Thème Home Assistant**, **Couleurs des anneaux : Couleurs du thème HA** et **Thème : Auto** :
+
+```yaml
+type: custom:day-wheel-card
+knob_theme: ha
+palette: theme
+layers:
+  - schedule.chauffage
+  - schedule.volets
+  - input_datetime.reveil
+```
+
+Exemple avec un thème Nord, en sombre puis en clair (de gauche à droite : métal, `ha`, `ha` + `palette: theme`) :
+
+![Thème sombre](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/theme-sombre.png)
+![Thème clair](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/theme-clair.png)
+
+Les couleurs choisies à la main pour un anneau (`color`) restent prioritaires.
 
 ### Avec Radial Selector Card
 
@@ -98,6 +121,7 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 - **1 to 6 rings** (`layers`): `schedule` (editable time ranges), `input_datetime` / `time` (draggable time marker), timestamp `sensor` (marker), `calendar` (today's events).
 - **Days of the week** to view and edit any day, **night shading** from sunset to sunrise, a **current-time hand**, and what's on / next in the center.
 - Uses the **Home Assistant server time zone**, live updates, 7 center styles, `noon_top` orientation, adjustable `snap` (minutes), haptics, light / dark.
+- **Follows the Home Assistant theme**: with `knob_theme: ha`, the whole dial (face, empty rings, ticks, day / night ring, center, hand) uses the active theme's colors, and `palette: theme` gives the rings the theme's colors (primary, success, warning, info, error, accent). Theme changes apply instantly; a ring's own `color` still wins.
 - Editing schedules requires an **administrator** (Home Assistant rule); YAML-defined schedules can't be read by cards, create them under **Settings › Devices & services › Helpers › Schedule**.
 
 Install it from the Marketplace / HACS with the **Open in Home Assistant** button above, then add the card from the dashboard editor. The options table above lists the YAML keys.
@@ -107,7 +131,7 @@ Install it from the Marketplace / HACS with the **Open in Home Assistant** butto
 ```bash
 npm ci
 npx playwright install chromium
-npm test          # 78 vérifications dans Chrome : affichage, glisser, créer, supprimer, droits, éditeur…
+npm test          # 90 vérifications dans Chrome : affichage, glisser, créer, supprimer, droits, éditeur…
 ```
 
 Les tests tournent aussi sur GitHub à chaque modification (workflow **Tests**). Historique : [CHANGELOG.md](CHANGELOG.md).
