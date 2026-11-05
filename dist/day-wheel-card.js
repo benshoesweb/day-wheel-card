@@ -12,6 +12,7 @@
  *   sensor.*          horodatage (prochaine alarme du téléphone…) — repère en lecture seule
  *   calendar.*        événements du jour — arcs en lecture seule
  * Autour : nuit (coucher → lever du soleil), aiguille de l'heure actuelle, jours de la semaine.
+ * Noms des entités comme dans Home Assistant (hass.formatEntityName, sinon friendly_name).
  *
  * Options :
  *   layers            1 à 6 anneaux, de l'extérieur vers l'intérieur : entity, name, color, icon
@@ -52,6 +53,21 @@
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   const pad = (n) => String(Math.floor(n)).padStart(2, '0');
   const r2 = (v) => Math.round(v * 100) / 100;
+  // Nom d'une entité tel que Home Assistant l'affiche dans ses propres cartes : hass.formatEntityName
+  // (versions récentes ; depuis 2026.11, souvent le nom de l'appareil puis celui de l'entité),
+  // l'attribut friendly_name étant appelé à disparaître. Versions précédentes ou erreur : friendly_name.
+  const haEntityName = (hass, entityId) => {
+    const st = hass && hass.states && entityId ? hass.states[entityId] : null;
+    if (!st) return '';
+    if (typeof hass.formatEntityName === 'function') {
+      try {
+        const n = hass.formatEntityName(st);
+        if (n != null && String(n).trim()) return String(n).trim();
+      } catch (e) { /* ancienne interface : nom de secours */ }
+    }
+    return (st.attributes && st.attributes.friendly_name) || '';
+  };
+
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
@@ -442,11 +458,12 @@
     _item(entity) {
       const id = this._ids[entity];
       if (id && this._items.has(id)) return this._items.get(id);
+      // Repli (identifiant unique pas encore lu) : par identifiant, puis par nom du planning
       const st = this._hass && this._hass.states[entity];
-      const name = st && st.attributes && st.attributes.friendly_name;
+      const names = [st && st.attributes && st.attributes.friendly_name, haEntityName(this._hass, entity)].filter(Boolean);
       const slug = entity.split('.')[1];
       for (const it of this._items.values()) {
-        if (it.id === slug || (name && it.name === name)) return it;
+        if (it.id === slug || names.includes(it.name)) return it;
       }
       return null;
     }
@@ -569,8 +586,7 @@
 
     _name(layer) {
       if (layer.name) return layer.name;
-      const st = this._hass && this._hass.states[layer.entity];
-      return (st && st.attributes && st.attributes.friendly_name) || layer.entity;
+      return haEntityName(this._hass, layer.entity) || layer.entity;
     }
 
     _icon(layer) {

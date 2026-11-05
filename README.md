@@ -81,7 +81,7 @@ layers:
 
 | Option | Valeurs | Défaut |
 |---|---|---|
-| `layers` | 1 à 6 anneaux : `entity`, `name`, `color`, `icon` (ou simplement l'entity_id) | — |
+| `layers` | 1 à 6 anneaux : `entity`, `name` (sinon le nom affiché par Home Assistant), `color`, `icon` (ou simplement l'entity_id) | — |
 | `name` | titre de la carte | aucun |
 | `orientation` | `midnight_top` (minuit en haut), `noon_top` (midi en haut) | `midnight_top` |
 | `snap` | pas de réglage en minutes : `5`, `10`, `15`, `30`, `60` | `15` |
@@ -137,7 +137,7 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 ```bash
 npm ci
 npx playwright install chromium
-npm test          # 90 vérifications dans Chrome : affichage, glisser, créer, supprimer, droits, éditeur…
+npm test          # 96 vérifications dans Chrome : affichage, glisser, créer, supprimer, droits, éditeur…
 ```
 
 Les tests tournent aussi sur GitHub à chaque modification (workflow **Tests**). Historique : [CHANGELOG.md](CHANGELOG.md).
