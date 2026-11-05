@@ -4,6 +4,18 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les
 
 *Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), following [semantic versioning](https://semver.org/). Each version is described in French, then in English.*
 
+## [1.2.0] — 2026-11-05
+
+### Modifié
+- **Noms des entités comme dans Home Assistant** : sans `name` choisi, un anneau prend le nom que Home Assistant affiche lui-même (`hass.formatEntityName`, fourni par les versions récentes de Home Assistant), au lieu de l'attribut `friendly_name`, dont la suppression est annoncée. Depuis 2026.11, ce nom est souvent celui de l'appareil suivi de celui de l'entité (ex. « Chambre Réveil »), comme dans les cartes de Home Assistant. Pour garder un nom court, choisissez-le dans l'éditeur (champ « Nom ») ou avec `name`. Sur les versions qui ne le fournissent pas, rien ne change (`friendly_name`). Les plannings restent retrouvés par leur identifiant, ou à défaut par leur nom.
+- 6 vérifications automatiques de plus (96 au total).
+
+#### English
+
+##### Changed
+- **Entity names like Home Assistant's**: without a chosen `name`, a ring uses the name Home Assistant itself displays (`hass.formatEntityName`, provided by recent Home Assistant versions), instead of the `friendly_name` attribute, whose removal has been announced. Since 2026.11, this name is often the device name followed by the entity name (e.g. "Bedroom Alarm"), as in Home Assistant's cards. To keep a short name, set it in the editor ("Name" field) or with `name`. On versions that don't provide it, nothing changes (`friendly_name`). Schedules are still found by their unique ID, or otherwise by their name.
+- 6 more automated checks (96 in total).
+
 ## [1.1.0] — 2026-11-05
 
 ### Ajouté
@@ -46,5 +58,6 @@ First public release.
 - Visual editor in French and English.
 - 78 automated checks in Chrome (GitHub Actions).
 
+[1.2.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.2.0
 [1.1.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.1.0
 [1.0.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.0.0
