@@ -4,6 +4,18 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les
 
 *Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), following [semantic versioning](https://semver.org/). Each version is described in French, then in English.*
 
+## [1.2.1] — 2026-11-05
+
+### Modifié
+- **Titre de la carte** : le nom de la carte (`name`) utilise maintenant le **titre standard des cartes Home Assistant** (l'en-tête de la carte), au lieu d'un titre propre à la carte. Il a la même taille, les mêmes marges et la même police que les autres cartes du tableau de bord, et suit les variables du thème (`--ha-card-header-font-size`, `--ha-card-header-color`, `--ha-card-header-font-family`). Le titre est plus grand qu'avant : la carte demande une ligne de plus dans la grille.
+- 6 vérifications automatiques de plus (102 au total) ; images du README refaites.
+
+#### English
+
+##### Changed
+- **Card title**: the card name (`name`) now uses **Home Assistant's standard card title** (the card header) instead of a title of its own. It has the same size, spacing and font as the other cards on the dashboard, and follows the theme variables (`--ha-card-header-font-size`, `--ha-card-header-color`, `--ha-card-header-font-family`). The title is larger than before: the card asks for one more row in the grid.
+- 6 more automated checks (102 in total); README images redone.
+
 ## [1.2.0] — 2026-11-05
 
 ### Modifié
@@ -58,6 +70,7 @@ First public release.
 - Visual editor in French and English.
 - 78 automated checks in Chrome (GitHub Actions).
 
+[1.2.1]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.2.1
 [1.2.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.2.0
 [1.1.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.1.0
 [1.0.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.0.0

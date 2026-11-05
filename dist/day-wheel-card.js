@@ -16,7 +16,7 @@
  *
  * Options :
  *   layers            1 à 6 anneaux, de l'extérieur vers l'intérieur : entity, name, color, icon
- *   name              titre de la carte
+ *   name              titre de la carte (en-tête standard de Home Assistant, comme les autres cartes)
  *   orientation       midnight_top (minuit en haut, défaut) | noon_top (midi en haut)
  *   snap              pas de réglage en minutes : 5 | 10 | 15 (défaut) | 30 | 60
  *   show_sun          true (défaut) : nuit grisée, lever et coucher du soleil
@@ -222,7 +222,6 @@
       --dwc-c-shadow: 0 0 12px rgb(34 230 255 / .55), inset 0 0 14px rgb(34 230 255 / .25); }
     .wrap.night-dim { filter: brightness(.9); }
 
-    .title { font-size: 15px; font-weight: 500; padding: 0 4px 6px; }
     .dial { position: relative; width: 100%; max-width: 420px; margin: 0 auto; aspect-ratio: 1 / 1; touch-action: none; user-select: none; -webkit-user-select: none; }
     .dial > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
     .dial > svg:focus { outline: none; }
@@ -377,8 +376,9 @@
       if (this._hass) this.hass = this._hass;
     }
 
-    getCardSize() { return 7; }
-    getGridOptions() { return { columns: 6, rows: 7, min_columns: 4, min_rows: 5 }; }
+    // Le titre (en-tête standard de ha-card) prend une ligne de plus dans la grille
+    getCardSize() { return 7 + (this._config && this._config.name ? 1 : 0); }
+    getGridOptions() { return { columns: 6, rows: 7 + (this._config && this._config.name ? 1 : 0), min_columns: 4, min_rows: 5 }; }
 
     connectedCallback() {
       clearInterval(this._tick);
@@ -620,9 +620,8 @@
       const c = this._config;
       this.shadowRoot.innerHTML = `
         <style>${STYLES}</style>
-        <ha-card>
+        <ha-card${c.name ? ` header="${esc(c.name)}"` : ''}>
           <div class="wrap skin-${this._skin()}">
-            ${c.name ? `<div class="title">${esc(c.name)}</div>` : ''}
             <div class="dial">
               <svg viewBox="0 0 400 400" role="img" aria-label="" tabindex="0">
                 <g class="g-face"></g><g class="g-rings"></g><g class="g-top"></g>

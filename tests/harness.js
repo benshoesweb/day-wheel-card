@@ -86,7 +86,15 @@ customElements.define('ha-icon', class extends HTMLElement {
   }
 });
 customElements.define('ha-card', class extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }).innerHTML = '<style>:host{display:block;background:var(--ha-card-background,var(--card-background-color,#fff));border-radius:12px;border:1px solid var(--divider-color,#e0e0e0);color:var(--primary-text-color)}</style><slot></slot>'; }
+  // Comme le vrai ha-card : l'attribut « header » devient un titre <h1 class="card-header">
+  static get observedAttributes() { return ['header']; }
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this.render(); }
+  attributeChangedCallback() { this.render(); }
+  render() {
+    const h = this.getAttribute('header');
+    const esc = (v) => v.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    this.shadowRoot.innerHTML = '<style>:host{display:block;background:var(--ha-card-background,var(--card-background-color,#fff));border-radius:12px;border:1px solid var(--divider-color,#e0e0e0);color:var(--primary-text-color)}.card-header{color:var(--ha-card-header-color,var(--primary-text-color));font-family:var(--ha-card-header-font-family,inherit);font-size:var(--ha-card-header-font-size,24px);letter-spacing:-.012em;line-height:1.2;padding:20px 16px 24px;font-weight:400;margin-block:0;display:block}</style>' + (h ? '<h1 class="card-header">' + esc(h) + '</h1>' : '') + '<slot></slot>';
+  }
 });
 const picker = () => class extends HTMLElement {
   set value(v) { this._v = v; } get value() { return this._v || ''; }
