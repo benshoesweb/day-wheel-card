@@ -4,6 +4,20 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les
 
 *Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), following [semantic versioning](https://semver.org/). Each version is described in French, then in English.*
 
+## [1.1.0] — 2026-11-05
+
+### Ajouté
+- **Suivi du thème Home Assistant** : avec le style de centre **`ha`**, tout le cadran prend désormais les couleurs du thème actif, en clair comme en sombre : fond du cadran (couleur secondaire), anneaux vides, graduations, couronne jour / nuit, repères du soleil, centre et aiguille. Un changement de thème s'applique immédiatement.
+- Nouvelle option **`palette`** : `default` (palette de la carte) ou **`theme`**, qui donne aux anneaux sans couleur choisie les couleurs du thème (principale, succès, avertissement, info, erreur, accent). Réglable dans l'éditeur ; une couleur choisie pour un anneau reste prioritaire.
+- 12 vérifications automatiques de plus (90 au total).
+
+#### English
+
+##### Added
+- **Follows the Home Assistant theme**: with the **`ha`** center style, the whole dial now uses the active theme's colors, in light and dark mode: dial face (secondary color), empty rings, ticks, day / night ring, sun markers, center and hand. A theme change applies instantly.
+- New **`palette`** option: `default` (card palette) or **`theme`**, which gives rings without a chosen color the theme's colors (primary, success, warning, info, error, accent). Available in the editor; a ring's own color still wins.
+- 12 more automated checks (90 in total).
+
 ## [1.0.0] — 2026-11-04
 
 Première version publique.
@@ -32,4 +46,5 @@ First public release.
 - Visual editor in French and English.
 - 78 automated checks in Chrome (GitHub Actions).
 
+[1.1.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.1.0
 [1.0.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.0.0

@@ -22,7 +22,10 @@
  *   show_days         true (défaut) : jours de la semaine (plannings et calendriers)
  *   show_legend       true (défaut) : légende des anneaux sous le cadran
  *   haptics           true (défaut) : retour haptique au doigt
- *   knob_theme        metal (défaut) | ha | glass | neumorph | brass | carbon | neon
+ *   knob_theme        metal (défaut) | ha (cadran, anneaux, jour / nuit et centre aux couleurs du thème HA)
+ *                     | glass | neumorph | brass | carbon | neon
+ *   palette           default (défaut) : palette de la carte | theme : couleurs du thème HA
+ *                     (principale, succès, avertissement, info, erreur, accent) pour les anneaux sans couleur
  *   theme             auto (défaut) | light | dark
  */
 (() => {
@@ -40,6 +43,9 @@
   const SNAPS = [5, 10, 15, 30, 60];
   const KINDS = { schedule: 'schedule', input_datetime: 'marker', time: 'marker', sensor: 'marker', calendar: 'calendar' };
   const PALETTE = ['#ff8a65', '#4fc3f7', '#aed581', '#ffd54f', '#ba68c8', '#4db6ac'];
+  // palette: theme — couleurs du thème Home Assistant (accent en dernier : il vaut souvent la couleur principale)
+  const THEME_PALETTE = ['primary-color', 'success-color', 'warning-color', 'info-color', 'error-color', 'accent-color']
+    .map((v, i) => `var(--${v}, ${PALETTE[i]})`);
   const LONG_PRESS_MS = 550;
   const DAY = 1440;
 
@@ -86,6 +92,7 @@
       knob_theme: 'Style du centre', skin_metal: 'Métal brossé (défaut)', skin_ha: 'Thème Home Assistant', skin_glass: 'Verre dépoli',
       skin_neumorph: 'Doux (relief mat)', skin_brass: 'Laiton vintage', skin_carbon: 'Carbone', skin_neon: 'Néon',
       orientation: 'Orientation', o_midnight_top: 'Minuit en haut (défaut)', o_noon_top: 'Midi en haut',
+      palette: 'Couleurs des anneaux sans couleur choisie', pal_default: 'Palette de la carte (défaut)', pal_theme: 'Couleurs du thème HA', theme_ha: 'Thème HA',
       snap: 'Pas de réglage', min: 'min',
       show_sun: 'Nuit grisée, lever et coucher du soleil', show_days: 'Jours de la semaine', show_legend: 'Légende sous le cadran',
       haptics: 'Retour haptique (vibration) sur écran tactile',
@@ -111,6 +118,7 @@
       knob_theme: 'Center style', skin_metal: 'Brushed metal (default)', skin_ha: 'Home Assistant theme', skin_glass: 'Frosted glass',
       skin_neumorph: 'Soft (matte relief)', skin_brass: 'Vintage brass', skin_carbon: 'Carbon', skin_neon: 'Neon',
       orientation: 'Orientation', o_midnight_top: 'Midnight at the top (default)', o_noon_top: 'Noon at the top',
+      palette: 'Colors of rings without a chosen color', pal_default: 'Card palette (default)', pal_theme: 'Home Assistant theme colors', theme_ha: 'HA theme',
       snap: 'Adjust step', min: 'min',
       show_sun: 'Shaded night, sunrise and sunset', show_days: 'Days of the week', show_legend: 'Legend below the dial',
       haptics: 'Haptic feedback (vibration) on touch screens',
@@ -174,6 +182,18 @@
       --dwc-c-text: #f2f3f5;
       --dwc-c-shadow: 0 1px 2px rgb(0 0 0 / .5), 0 8px 22px -4px rgb(0 0 0 / .7), inset 0 1px 0 rgb(255 255 255 / .14);
     }
+    /* Thème Home Assistant : cadran, anneaux vides, graduations, couronne jour / nuit et centre
+       reprennent les couleurs du thème actif (en clair comme en sombre) */
+    .wrap.skin-ha {
+      --dwc-face: var(--secondary-background-color, var(--card-background-color, #f5f5f5));
+      --dwc-face-edge: var(--divider-color, rgb(0 0 0 / .12));
+      --dwc-track: color-mix(in srgb, var(--primary-text-color, #212121) 11%, var(--secondary-background-color, var(--card-background-color, #f5f5f5)));
+      --dwc-tick: var(--secondary-text-color, #727272);
+      --dwc-dayband: color-mix(in srgb, var(--warning-color, #ffa600) 13%, transparent);
+      --dwc-nightband: color-mix(in srgb, var(--primary-text-color, #212121) 15%, transparent);
+      --dwc-sun: var(--warning-color, #ffa600);
+    }
+    .wrap.dark.skin-ha { --dwc-nightband: color-mix(in srgb, var(--primary-background-color, #111) 70%, #000); }
     .wrap.skin-ha { --dwc-c1: var(--card-background-color, #fff); --dwc-c2: var(--card-background-color, #fff); --dwc-c-edge: var(--primary-color, #03a9f4); --dwc-c-text: var(--primary-text-color); --dwc-c-shadow: 0 2px 8px rgb(0 0 0 / .18); --dwc-hand: var(--primary-color, #03a9f4); }
     .wrap.skin-glass { --dwc-c1: rgb(255 255 255 / .55); --dwc-c2: rgb(255 255 255 / .18); --dwc-c-edge: rgb(255 255 255 / .6); --dwc-c-shadow: 0 8px 24px -6px rgb(0 0 0 / .35), inset 0 1px 1px rgb(255 255 255 / .7); }
     .wrap.dark.skin-glass { --dwc-c1: rgb(255 255 255 / .16); --dwc-c2: rgb(255 255 255 / .04); --dwc-c-edge: rgb(255 255 255 / .22); }
@@ -542,7 +562,10 @@
       return null;
     }
 
-    _color(layer, i) { return cssColor(layer.color) || PALETTE[i % PALETTE.length]; }
+    _color(layer, i) {
+      const pal = this._config.palette === 'theme' ? THEME_PALETTE : PALETTE;
+      return cssColor(layer.color) || pal[i % pal.length];
+    }
 
     _name(layer) {
       if (layer.name) return layer.name;
@@ -706,7 +729,7 @@
             const m0 = b.s + Math.min(inset, (b.e - b.s) / 2 - 0.01);
             const m1 = b.e - Math.min(inset, (b.e - b.s) / 2 - 0.01);
             const title = kind === 'calendar' ? `${b.title} · ` : '';
-            rings += `<path class="${cls}" data-li="${li}" data-i="${i}" d="${arcPath(R.r, m0, Math.max(m1, m0 + 0.01), rot)}" stroke="${col}" stroke-width="${R.w}" style="--dwc-glow:${col}"><title>${esc(title + hhmm(b.s))} – ${esc(hhmm(b.e))}</title></path>`;
+            rings += `<path class="${cls}" data-li="${li}" data-i="${i}" d="${arcPath(R.r, m0, Math.max(m1, m0 + 0.01), rot)}" stroke-width="${R.w}" style="stroke:${col};--dwc-glow:${col}"><title>${esc(title + hhmm(b.s))} – ${esc(hhmm(b.e))}</title></path>`;
             if (sel && kind === 'schedule' && editable) {
               [b.s, b.e].forEach((m, k) => {
                 const [x, y] = pt(R.r, angleOf(m, rot));
@@ -723,7 +746,7 @@
             const label = hhmm(mk.m).replace(/^0/, '');
             const fs = r2(Math.min(10, (rd * 2 - 3) / (label.length * 0.58)));
             top += `<g class="marker${ro ? ' ro' : ''}${this._drag && this._drag.li === li ? ' dragging' : ''}" data-li="${li}">
-              <circle class="m-dot" cx="${x}" cy="${y}" r="${r2(rd)}" fill="${col}"></circle>
+              <circle class="m-dot" cx="${x}" cy="${y}" r="${r2(rd)}" style="fill:${col}"></circle>
               ${fs >= 7 ? `<text class="label-ring" x="${x}" y="${y}" style="font-size:${fs}px">${esc(label)}</text>` : ''}
               <title>${esc(this._name(layer))} · ${esc(hhmm(mk.m))}</title></g>`;
           }
@@ -1158,7 +1181,7 @@
     .hint { font-size: 12px; color: var(--secondary-text-color); margin-top: 8px; line-height: 1.4; }
   `;
   const DEFAULT_TRUE = ['show_sun', 'show_days', 'show_legend', 'haptics'];
-  const SELECT_DEFAULTS = { theme: 'auto', knob_theme: 'metal', orientation: 'midnight_top', snap: '15' };
+  const SELECT_DEFAULTS = { theme: 'auto', knob_theme: 'metal', orientation: 'midnight_top', snap: '15', palette: 'default' };
   const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(l)}</option>`).join('');
   const toHex = (v) => {
     const s = String(v || '').trim();
@@ -1196,7 +1219,13 @@
       this.shadowRoot.querySelectorAll('ha-entity-picker, ha-icon-picker').forEach((el) => { el.hass = hass; });
     }
 
-    _signature() { return JSON.stringify([langOf(this._hass), this._config.layers.length]); }
+    _signature() { return JSON.stringify([langOf(this._hass), this._config.layers.length, this._config.palette === 'theme']); }
+
+    // Couleur d'un anneau sans couleur choisie (palette de la carte ou du thème)
+    _defaultColor(i) {
+      const pal = this._config.palette === 'theme' ? THEME_PALETTE : PALETTE;
+      return pal[i % pal.length];
+    }
 
     _emit() {
       const { type, ...rest } = this._config;
@@ -1215,7 +1244,7 @@
       this._config.layers = layers;
       this._emit();
       const head = this.shadowRoot.querySelector(`[data-layer="${i}"] .layer-head i`);
-      if (head) head.style.background = cssColor(layers[i].color) || PALETTE[i % PALETTE.length];
+      if (head) head.style.background = cssColor(layers[i].color) || this._defaultColor(i);
     }
 
     _render() {
@@ -1225,7 +1254,7 @@
       const sw = (key, label) => `<label class="switch-label"><input type="checkbox" data-field="${key}" ${c[key] !== false ? 'checked' : ''}> ${esc(label)}</label>`;
       const layers = c.layers.map((l, i) => `
         <div class="layer" data-layer="${i}">
-          <div class="layer-head"><i style="background:${cssColor(l.color) || PALETTE[i % PALETTE.length]}"></i><span>${esc(t('layer'))} ${i + 1}</span>
+          <div class="layer-head"><i style="background:${cssColor(l.color) || this._defaultColor(i)}"></i><span>${esc(t('layer'))} ${i + 1}</span>
             <button class="mini" data-move="-1" ${i === 0 ? 'disabled' : ''} title="${esc(t('up'))}">▲</button>
             <button class="mini" data-move="1" ${i === c.layers.length - 1 ? 'disabled' : ''} title="${esc(t('down'))}">▼</button>
             <button class="mini" data-del ${c.layers.length <= 1 ? 'disabled' : ''} title="${esc(t('remove'))}">✕</button>
@@ -1235,7 +1264,7 @@
             <div class="field"><label>${esc(t('layer_name'))}</label><input type="text" data-lfield="name" value="${esc(l.name || '')}"></div>
             <div class="field"><label>${esc(t('color'))}</label><div class="color-row">
               <input type="color" data-swatch value="${esc(toHex(l.color) || PALETTE[i % PALETTE.length])}">
-              <input type="text" data-lfield="color" value="${esc(l.color || '')}" placeholder="${esc(PALETTE[i % PALETTE.length])}"></div></div>
+              <input type="text" data-lfield="color" value="${esc(l.color || '')}" placeholder="${esc(c.palette === 'theme' ? t('theme_ha') : PALETTE[i % PALETTE.length])}"></div></div>
             <div class="field"><ha-icon-picker data-lkey="icon"></ha-icon-picker></div>
           </div>
         </div>`).join('');
@@ -1249,6 +1278,7 @@
               <div class="field"><label>${esc(t('theme'))}</label><select data-field="theme">${opts([['auto', t('theme_auto')], ['dark', t('theme_dark')], ['light', t('theme_light')]], c.theme || 'auto')}</select></div>
               <div class="field"><label>${esc(t('knob_theme'))}</label><select data-field="knob_theme">${opts(SKINS.map((k) => [k, t(`skin_${k}`)]), SKINS.includes(c.knob_theme) ? c.knob_theme : 'metal')}</select></div>
               <div class="field"><label>${esc(t('orientation'))}</label><select data-field="orientation">${opts([['midnight_top', t('o_midnight_top')], ['noon_top', t('o_noon_top')]], c.orientation === 'noon_top' ? 'noon_top' : 'midnight_top')}</select></div>
+              <div class="field"><label>${esc(t('palette'))}</label><select data-field="palette">${opts([['default', t('pal_default')], ['theme', t('pal_theme')]], c.palette === 'theme' ? 'theme' : 'default')}</select></div>
               <div class="field"><label>${esc(t('snap'))}</label><select data-field="snap">${opts(SNAPS.map((s) => [String(s), `${s} ${t('min')}`]), SNAPS.includes(Number(c.snap)) ? String(c.snap) : '15')}</select></div>
             </div>
             <div class="switches">${sw('show_sun', t('show_sun'))}${sw('show_days', t('show_days'))}${sw('show_legend', t('show_legend'))}${sw('haptics', t('haptics'))}</div>
