@@ -98,7 +98,7 @@ customElements.define('ha-card', class extends HTMLElement {
   render() {
     const h = this.getAttribute('header');
     const esc = (v) => v.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-    this.shadowRoot.innerHTML = '<style>:host{display:block;background:var(--ha-card-background,var(--card-background-color,#fff));border-radius:12px;border:1px solid var(--divider-color,#e0e0e0);color:var(--primary-text-color)}.card-header{color:var(--ha-card-header-color,var(--primary-text-color));font-family:var(--ha-card-header-font-family,inherit);font-size:var(--ha-card-header-font-size,24px);letter-spacing:-.012em;line-height:1.2;padding:20px 16px 24px;font-weight:400;margin-block:0;display:block}</style>' + (h ? '<h1 class="card-header">' + esc(h) + '</h1>' : '') + '<slot></slot>';
+    this.shadowRoot.innerHTML = '<style>:host{display:block;background:var(--ha-card-background,var(--card-background-color,#fff));border-radius:var(--ha-card-border-radius,12px);border-width:var(--ha-card-border-width,1px);border-style:solid;border-color:var(--ha-card-border-color,var(--divider-color,#e0e0e0));box-shadow:var(--ha-card-box-shadow,none);color:var(--primary-text-color)}.card-header{color:var(--ha-card-header-color,var(--primary-text-color));font-family:var(--ha-card-header-font-family,inherit);font-size:var(--ha-card-header-font-size,24px);letter-spacing:-.012em;line-height:1.2;padding:20px 16px 24px;font-weight:400;margin-block:0;display:block}</style>' + (h ? '<h1 class="card-header">' + esc(h) + '</h1>' : '') + '<slot></slot>';
   }
 });
 const picker = () => class extends HTMLElement {

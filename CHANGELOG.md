@@ -4,6 +4,18 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les
 
 *Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), following [semantic versioning](https://semver.org/). Each version is described in French, then in English.*
 
+## [1.4.0] — 2026-11-06
+
+### Ajouté
+- **Fond de la carte**, comme dans Radial Selector Card : nouvelle option **`card_style`** (« Apparence de la carte » dans l'éditeur) : `standard` (fond et contour du thème, par défaut : rien ne change pour les cartes existantes), `border_only` (contour sans fond), `background_only` (fond sans contour) ou **`transparent`** (ni fond ni contour, le cadran est posé sur le fond du tableau de bord). Couleurs au choix avec `card_background` et `card_border_color` (nuancier ou toute couleur CSS, variables du thème comprises) ; une couleur invalide est ignorée et le thème reprend la main.
+- 14 vérifications automatiques de plus (229 au total).
+
+#### English
+
+##### Added
+- **Card background**, like in Radial Selector Card: new **`card_style`** option ("Card appearance" in the editor): `standard` (theme background and border, default: existing cards don't change), `border_only` (border, no background), `background_only` (background, no border) or **`transparent`** (no background, no border, the dial sits on the dashboard background). Pick colors with `card_background` and `card_border_color` (color picker or any CSS color, theme variables included); an invalid color is ignored and the theme takes over.
+- 14 more automated checks (229 in total).
+
 ## [1.3.0] — 2026-11-06
 
 ### Ajouté
@@ -92,6 +104,7 @@ First public release.
 - Visual editor in French and English.
 - 78 automated checks in Chrome (GitHub Actions).
 
+[1.4.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.4.0
 [1.3.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.3.0
 [1.2.1]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.2.1
 [1.2.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.2.0

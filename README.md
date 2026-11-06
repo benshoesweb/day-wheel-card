@@ -158,8 +158,23 @@ layers:
 | `knob_theme` | `metal`, `ha` (tout le cadran aux couleurs du thème), `glass`, `neumorph`, `brass`, `carbon`, `neon` | `metal` |
 | `palette` | couleurs des anneaux sans couleur choisie : `default` (palette de la carte) ou `theme` (couleurs du thème : principale, succès, avertissement, info, erreur, accent) | `default` |
 | `theme` | `auto`, `light`, `dark` | `auto` |
+| `card_style` | fond et contour de la carte : `standard` (fond + contour du thème), `border_only` (contour sans fond), `background_only` (fond sans contour), `transparent` (ni fond ni contour) | `standard` |
+| `card_background`, `card_border_color` | couleurs CSS du fond et du contour (`#1c1f26`, `rgb(…)`, `var(--primary-color)`…) | thème |
 
 ![Thème clair](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/apercu-clair.png)
+
+### Fond de la carte
+
+Comme pour Radial Selector Card, choisissez dans l'éditeur (**Apparence de la carte**) le fond et le contour : fond + contour du thème (par défaut), contour seul, fond seul ou **transparente**, par exemple pour poser le cadran directement sur le fond du tableau de bord. Les couleurs du fond et du contour peuvent aussi être choisies ; sans couleur choisie, celles du thème Home Assistant s'appliquent.
+
+![Fonds de la carte](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/fonds.png)
+
+```yaml
+type: custom:day-wheel-card
+card_style: transparent
+layers:
+  - schedule.chauffage
+```
 
 ### Suivre le thème Home Assistant
 
@@ -194,6 +209,7 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 - **Heating, covers, lights**: give a schedule ring a device to control (`target`, "Control" in the editor): a thermostat (`climate`), a cover or a light (light groups included). Each time range then has a temperature, a position or a brightness, set with **− / +** in the center (limits and step from the device, or `min`, `max`, `step`), written along the range. The value is stored in the range's data (`temperature`, `position`, `brightness_pct`). Since the card only runs while the dashboard is shown, an automation built on the [`day_wheel_schedule.yaml`](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fbenshoesweb%2Fday-wheel-card%2Fblob%2Fmain%2Fblueprints%2Fday_wheel_schedule.yaml) blueprint applies the values on time: the range's value during a range, an "outside" temperature / position, turning off, or nothing outside the ranges; restored on restart. **The card creates it for you** (administrators), one per schedule, as soon as you set a first value: it installs the blueprint if needed, creates "Day Wheel · Heating → Living room thermostat" and runs it once; adding, moving or deleting ranges needs nothing more. No duplicates: an existing automation using the schedule with the blueprint is reused. The summary and the editor show its state with **Create the automation**, **Open** and **Control …** (update after changing the device) buttons; `create_automation: false` turns automatic creation off. Group several lights with a light group helper.
 - **Summary** on a long press of the center (`summary`, on by default): every schedule's full week with values and daily / weekly totals, times, today's events and the card settings, in a window that follows the Home Assistant theme (or the card's light / dark theme), scrolls when long, goes full screen on phones and sits centered on tablets and computers; close it with the top-right cross, Escape or a click outside.
 - **Days of the week** to view and edit any day, **night shading** from sunset to sunrise, a **current-time hand**, and what's on / next in the center.
+- **Card background**, like Radial Selector Card: `card_style` `standard` (theme background + border, default), `border_only`, `background_only` or `transparent`, with optional `card_background` / `card_border_color` colors (theme colors otherwise).
 - Uses the **Home Assistant server time zone**, live updates, 7 center styles, `noon_top` orientation, adjustable `snap` (minutes), haptics, light / dark.
 - **Follows the Home Assistant theme**: with `knob_theme: ha`, the whole dial (face, empty rings, ticks, day / night ring, center, hand) uses the active theme's colors, and `palette: theme` gives the rings the theme's colors (primary, success, warning, info, error, accent). Theme changes apply instantly; a ring's own `color` still wins.
 - Editing schedules requires an **administrator** (Home Assistant rule); YAML-defined schedules can't be read by cards, create them under **Settings › Devices & services › Helpers › Schedule**.
@@ -205,7 +221,7 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 ```bash
 npm ci
 npx playwright install chromium
-npm test          # 215 vérifications dans Chrome : affichage, glisser, créer, supprimer, valeurs, résumé, automatisations, droits, éditeur…
+npm test          # 229 vérifications dans Chrome : affichage, glisser, créer, supprimer, valeurs, résumé, automatisations, droits, éditeur…
 ```
 
 Les tests tournent aussi sur GitHub à chaque modification (workflow **Tests**). Historique : [CHANGELOG.md](CHANGELOG.md).
