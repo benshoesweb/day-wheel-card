@@ -37,6 +37,11 @@
  *   palette           default (défaut) : palette de la carte | theme : couleurs du thème HA
  *                     (principale, succès, avertissement, info, erreur, accent) pour les anneaux sans couleur
  *   theme             auto (défaut) | light | dark
+ * Apparence de la carte (comme Radial Selector Card) :
+ *   card_style        standard (défaut : fond + contour du thème) | border_only (contour sans fond)
+ *                     | background_only (fond sans contour) | transparent (ni fond ni contour)
+ *   card_background   couleur de fond (standard / background_only)
+ *   card_border_color couleur du contour (standard / border_only)
  */
 (() => {
   const TAG = 'day-wheel-card';
@@ -51,6 +56,7 @@
   const WD_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const SKINS = ['metal', 'ha', 'glass', 'neumorph', 'brass', 'carbon', 'neon'];
   const SNAPS = [5, 10, 15, 30, 60];
+  const CARD_STYLES_LIST = ['standard', 'border_only', 'background_only', 'transparent'];
   const KINDS = { schedule: 'schedule', input_datetime: 'marker', time: 'marker', sensor: 'marker', calendar: 'calendar' };
   const PALETTE = ['#ff8a65', '#4fc3f7', '#aed581', '#ffd54f', '#ba68c8', '#4db6ac'];
   // palette: theme — couleurs du thème Home Assistant (accent en dernier : il vaut souvent la couleur principale)
@@ -206,6 +212,12 @@
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
   const cssColor = (v) => String(v ?? '').replace(/[;"'<>{}]/g, '').trim();
+  // Couleur valide pour le navigateur (variables CSS comprises), sinon rien : le thème reprend la main
+  const validColor = (v) => {
+    const c = cssColor(v);
+    if (!c) return '';
+    try { return window.CSS && typeof CSS.supports === 'function' && !CSS.supports('color', c) ? '' : c; } catch (e) { return c; }
+  };
   // « HH:MM:SS » -> minutes (24:00:00 -> 1440)
   const toMin = (s) => {
     const p = String(s ?? '').split(':').map(Number);
@@ -261,6 +273,9 @@
       target: 'Piloter (thermostat, volet ou lumière)',
       target_hint: 'Planning + « Piloter » : chaque plage reçoit une température, une position de volet ou une luminosité, réglée au centre avec − / +. Le blueprint Day Wheel l\'applique à l\'heure dite, même tableau de bord fermé. Pour plusieurs lumières, créez un groupe de lumières (Entrées › Groupe).',
       inc: 'Augmenter', dec: 'Diminuer', value: 'Valeur',
+      sec_card: 'Apparence de la carte', card_style: 'Fond et contour',
+      cs_standard: 'Fond + contour (thème HA, défaut)', cs_border_only: 'Contour sans fond', cs_background_only: 'Fond sans contour', cs_transparent: 'Transparente (ni fond ni contour)',
+      card_background: 'Couleur du fond', card_border_color: 'Couleur du contour', clear: 'Effacer (couleur du thème)',
       summary: 'Résumé', summary_open: 'Résumé (appui long)', show_summary: 'Résumé par appui long sur le centre',
       k_schedule: 'Planning', k_marker: 'Heure', k_sensor: 'Horodatage', k_calendar: 'Calendrier',
       controls: 'pilote {n}', no_range: 'Aucune plage', no_event: 'Aucun événement', no_time: 'Pas d\'heure ce jour-là',
@@ -303,6 +318,9 @@
       target: 'Control (thermostat, cover or light)',
       target_hint: 'Schedule + "Control": each time range gets a temperature, a cover position or a brightness, set in the center with − / +. The Day Wheel blueprint applies it on time, even with the dashboard closed. For several lights, create a light group (Helpers › Group).',
       inc: 'Increase', dec: 'Decrease', value: 'Value',
+      sec_card: 'Card appearance', card_style: 'Background and border',
+      cs_standard: 'Background + border (HA theme, default)', cs_border_only: 'Border, no background', cs_background_only: 'Background, no border', cs_transparent: 'Transparent (no background, no border)',
+      card_background: 'Background color', card_border_color: 'Border color', clear: 'Clear (theme color)',
       summary: 'Summary', summary_open: 'Summary (long press)', show_summary: 'Summary on long press of the center',
       k_schedule: 'Schedule', k_marker: 'Time', k_sensor: 'Timestamp', k_calendar: 'Calendar',
       controls: 'controls {n}', no_range: 'No time range', no_event: 'No event', no_time: 'No time that day',
@@ -897,6 +915,21 @@
       return { rings, inner, cw: clamp(((inner - 10) * 2) / 400, 0.3, 0.62), compact: inner < 75 };
     }
 
+    // Apparence de la carte : réglée via les variables de ha-card (le thème HA reste la valeur par défaut)
+    _cardStyle() {
+      const c = this._config;
+      const mode = CARD_STYLES_LIST.includes(c.card_style) ? c.card_style : 'standard';
+      const hasBg = mode === 'standard' || mode === 'background_only';
+      const hasBorder = mode === 'standard' || mode === 'border_only';
+      const v = [];
+      if (!hasBg) v.push('--ha-card-background:transparent');
+      else if (validColor(c.card_background)) v.push(`--ha-card-background:${validColor(c.card_background)}`);
+      if (!hasBorder) v.push('--ha-card-border-width:0px');
+      else if (validColor(c.card_border_color)) v.push(`--ha-card-border-color:${validColor(c.card_border_color)}`);
+      if (mode !== 'standard') v.push('--ha-card-box-shadow:none');
+      return v.join(';');
+    }
+
     _rot() { return this._config.orientation === 'noon_top' ? 180 : 0; }
     _snap() { const s = Number(this._config.snap); return SNAPS.includes(s) ? s : 15; }
     _skin() { return SKINS.includes(this._config.knob_theme) ? this._config.knob_theme : 'metal'; }
@@ -907,7 +940,7 @@
       const c = this._config;
       this.shadowRoot.innerHTML = `
         <style>${STYLES}</style>
-        <ha-card${c.name ? ` header="${esc(c.name)}"` : ''}>
+        <ha-card style="${esc(this._cardStyle())}"${c.name ? ` header="${esc(c.name)}"` : ''}>
           <div class="wrap skin-${this._skin()}">
             <div class="dial">
               <svg viewBox="0 0 400 400" role="img" aria-label="" tabindex="0">
@@ -1814,7 +1847,7 @@
     .auto .a-line { color: var(--primary-text-color); }
   ` + AUTO_STYLES;
   const DEFAULT_TRUE = ['show_sun', 'show_days', 'show_legend', 'haptics', 'summary', 'create_automation'];
-  const SELECT_DEFAULTS = { theme: 'auto', knob_theme: 'metal', orientation: 'midnight_top', snap: '15', palette: 'default' };
+  const SELECT_DEFAULTS = { theme: 'auto', knob_theme: 'metal', orientation: 'midnight_top', snap: '15', palette: 'default', card_style: 'standard' };
   const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(l)}</option>`).join('');
   const toHex = (v) => {
     const s = String(v || '').trim();
@@ -1853,7 +1886,18 @@
       this._config.layers.forEach((_, i) => this._autoPaint(i));
     }
 
-    _signature() { return JSON.stringify([langOf(this._hass), this._config.layers.map((l) => kindOf(l.entity)), this._config.palette === 'theme']); }
+    _signature() { return JSON.stringify([langOf(this._hass), this._config.layers.map((l) => kindOf(l.entity)), this._config.palette === 'theme', this._cardMode()]); }
+
+    _cardMode() { return CARD_STYLES_LIST.includes(this._config.card_style) ? this._config.card_style : 'standard'; }
+
+    // Couleur : nuancier + texte (toute couleur CSS) + effacer (= couleur du thème)
+    _colorField(key, label, def) {
+      const v = this._config[key] || '';
+      return `<div class="field"><label>${esc(label)}</label><div class="color-row">
+        <input type="color" data-gswatch="${key}" value="${esc(toHex(v) || def)}">
+        <input type="text" data-field="${key}" value="${esc(v)}" placeholder="${esc(this._t('theme_ha'))}">
+        <button type="button" class="mini" data-gclear="${key}" title="${esc(this._t('clear'))}" aria-label="${esc(this._t('clear'))}">✕</button></div></div>`;
+    }
 
     // Couleur d'un anneau sans couleur choisie (palette de la carte ou du thème)
     _defaultColor(i) {
@@ -1918,6 +1962,14 @@
               <div class="field"><label>${esc(t('snap'))}</label><select data-field="snap">${opts(SNAPS.map((s) => [String(s), `${s} ${t('min')}`]), SNAPS.includes(Number(c.snap)) ? String(c.snap) : '15')}</select></div>
             </div>
             <div class="switches">${sw('show_sun', t('show_sun'))}${sw('show_days', t('show_days'))}${sw('show_legend', t('show_legend'))}${sw('haptics', t('haptics'))}${sw('summary', t('show_summary'))}${sw('create_automation', t('create_automation'))}</div>
+          </div>
+          <div class="section">
+            <div class="section-title">${esc(t('sec_card'))}</div>
+            <div class="grid-2">
+              <div class="field"><label>${esc(t('card_style'))}</label><select data-field="card_style">${opts(CARD_STYLES_LIST.map((k) => [k, t(`cs_${k}`)]), this._cardMode())}</select></div>
+              ${['standard', 'background_only'].includes(this._cardMode()) ? this._colorField('card_background', t('card_background'), '#1c1f26') : ''}
+              ${['standard', 'border_only'].includes(this._cardMode()) ? this._colorField('card_border_color', t('card_border_color'), '#5e6472') : ''}
+            </div>
           </div>
           <div class="section">
             <div class="section-title">${esc(t('sec_layers', { n: c.layers.length }))}</div>
@@ -2003,6 +2055,18 @@
           el.addEventListener('change', commit);
         }
       });
+      root.querySelectorAll('[data-gswatch]').forEach((sw) => sw.addEventListener('change', () => {
+        const key = sw.getAttribute('data-gswatch');
+        const txt = root.querySelector(`[data-field="${key}"]`);
+        if (txt) txt.value = sw.value;
+        this._set(key, sw.value);
+      }));
+      root.querySelectorAll('[data-gclear]').forEach((b) => b.addEventListener('click', () => {
+        const key = b.getAttribute('data-gclear');
+        const txt = root.querySelector(`[data-field="${key}"]`);
+        if (txt) txt.value = '';
+        this._set(key, undefined);
+      }));
       root.querySelectorAll('[data-layer]').forEach((box) => {
         const i = Number(box.getAttribute('data-layer'));
         box.querySelectorAll('[data-lkey]').forEach((p) => {

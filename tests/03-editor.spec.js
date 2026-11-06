@@ -36,13 +36,13 @@ module.exports = async (browser, h) => {
       swatch: $('[data-layer="0"] [data-swatch]').value,
       skins: $('[data-field="knob_theme"]').options.length,
     }));
-    check('français : sections, 2 anneaux (chaîne normalisée)', r.titles[0] === 'Paramètres généraux' && r.titles[1].startsWith('Anneaux (2/6)') && r.layers === 2, r);
+    check('français : sections (générales, apparence, anneaux), 2 anneaux (chaîne normalisée)', r.titles[0] === 'Paramètres généraux' && r.titles[1] === 'Apparence de la carte' && r.titles[2].startsWith('Anneaux (2/6)') && r.layers === 2, r);
     check('entité et couleur affichées, entités proposées : schedule, input_datetime, time, sensor, calendar',
       r.picker === 'schedule.chauffage' && r.swatch === '#ff7043' && JSON.stringify(r.domains) === JSON.stringify(['schedule', 'input_datetime', 'time', 'sensor', 'calendar']), r);
     check('7 styles de centre', r.skins === 7, r);
     await setup('en');
     const en = await page.evaluate(() => $$('.section-title').map((x) => x.textContent));
-    check('anglais', en[0] === 'General' && en[1].startsWith('Rings (2/6)'), en);
+    check('anglais', en[0] === 'General' && en[1] === 'Card appearance' && en[2].startsWith('Rings (2/6)'), en);
   }
 
   group('Éditeur : options');
