@@ -9,7 +9,7 @@ const mdi = require('@mdi/js');
 const CARD = path.resolve(process.env.CARD || path.join(__dirname, '..', 'dist', 'day-wheel-card.js'));
 
 const ICON_NAMES = ['trash-can-outline', 'close', 'calendar-clock', 'calendar', 'alarm', 'radiator', 'window-shutter',
-  'water', 'robot-vacuum', 'help-circle-outline', 'weather-sunset', 'bed', 'sprinkler'];
+  'water', 'robot-vacuum', 'help-circle-outline', 'weather-sunset', 'bed', 'sprinkler', 'minus', 'plus', 'thermostat', 'lightbulb-group'];
 const camel = (n) => 'mdi' + n.split('-').map((s) => s[0].toUpperCase() + s.slice(1)).join('');
 const ICONS = Object.fromEntries(ICON_NAMES.map((n) => [camel(n), mdi[camel(n)] || mdi.mdiHelpCircleOutline]));
 
@@ -25,6 +25,9 @@ const STATES = {
   'time.arrosage': { state: '20:00:00', attributes: { friendly_name: 'Arrosage' } },
   'sensor.prochaine_alarme': { state: '2026-11-04T05:15:00+00:00', attributes: { friendly_name: 'Alarme téléphone', device_class: 'timestamp' } },
   'calendar.famille': { state: 'off', attributes: { friendly_name: 'Famille' } },
+  'climate.salon': { state: 'heat', attributes: { friendly_name: 'Thermostat salon', temperature: 19, min_temp: 7, max_temp: 30, target_temp_step: 0.5 } },
+  'cover.salon': { state: 'open', attributes: { friendly_name: 'Volet salon', current_position: 100 } },
+  'light.groupe_salon': { state: 'off', attributes: { friendly_name: 'Lumières salon', entity_id: ['light.a', 'light.b'] } },
   'sun.sun': { state: 'above_horizon', attributes: { next_rising: '2026-11-05T06:50:00+00:00', next_setting: '2026-11-04T16:20:00+00:00' } },
 };
 
@@ -111,7 +114,7 @@ window.makeHass = () => ({
   themes: { darkMode: window.__dark },
   language: window.__lang,
   locale: { language: window.__lang },
-  config: { time_zone: 'Europe/Paris' },
+  config: { time_zone: 'Europe/Paris', unit_system: { temperature: '°C' } },
   user: { is_admin: window.__admin },
   connection: {
     subscribeMessage(cb, msg) {

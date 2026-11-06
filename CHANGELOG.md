@@ -4,6 +4,24 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les
 
 *Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), following [semantic versioning](https://semver.org/). Each version is described in French, then in English.*
 
+## [1.3.0] — 2026-11-06
+
+### Ajouté
+- **Plannings qui pilotent un appareil** : nouvelle option d'anneau **`target`** (« Piloter » dans l'éditeur) pour un planning. Choisissez un **thermostat** (`climate`), un **volet roulant** (`cover`) ou une **lumière** (`light`, groupes de lumières compris) : chaque plage reçoit alors une **température**, une **position** ou une **luminosité**, réglée au centre avec **− / +** (ou les flèches haut / bas du clavier) quand la plage est choisie. La valeur est écrite le long de la plage et affichée au centre (« → 19:00 21° »). Une nouvelle plage reprend la valeur de sa voisine.
+- La valeur est rangée dans les **données de la plage** (`data` : `temperature`, `position` ou `brightness_pct`), que Home Assistant expose en attribut du planning pendant la plage. Les autres données de la plage sont conservées.
+- Bornes et pas d'après l'appareil (température mini / maxi et pas du thermostat, 0 – 100 % par 10 pour les volets, 10 – 100 % par 10 pour les lumières), modifiables avec `min`, `max` et `step`.
+- **Blueprint** [`day_wheel_schedule.yaml`](blueprints/day_wheel_schedule.yaml) qui applique ces valeurs à l'heure dite, même tableau de bord fermé : température de la plage (thermostat rallumé si besoin), position (ou ouverture / fermeture pour un volet sans position), luminosité ; hors des plages, température ou position « hors plages », extinction, ou rien. Une valeur changée pendant la plage en cours s'applique aussitôt ; tout est rétabli au redémarrage. Testé sur Home Assistant 2026.11 (thermostats, volets, groupe de lumières, redémarrage).
+- 42 vérifications automatiques de plus (144 au total).
+
+#### English
+
+##### Added
+- **Schedules that control a device**: new ring option **`target`** ("Control" in the editor) for a schedule. Pick a **thermostat** (`climate`), a **cover** (`cover`) or a **light** (`light`, light groups included): each time range then gets a **temperature**, a **position** or a **brightness**, set in the center with **− / +** (or the up / down arrow keys) when the range is selected. The value is written along the range and shown in the center ("→ 19:00 21°"). A new range takes its neighbour's value.
+- The value is stored in the **range's data** (`data`: `temperature`, `position` or `brightness_pct`), which Home Assistant exposes as a schedule attribute during the range. The range's other data is kept.
+- Limits and step follow the device (thermostat min / max temperature and step, 0 – 100 % by 10 for covers, 10 – 100 % by 10 for lights), adjustable with `min`, `max` and `step`.
+- **Blueprint** [`day_wheel_schedule.yaml`](blueprints/day_wheel_schedule.yaml) that applies these values on time, even with the dashboard closed: the range's temperature (thermostat turned back on if needed), position (or open / close for a cover without position), brightness; outside the ranges, an "outside" temperature or position, turning off, or nothing. A value changed during the current range applies right away; everything is restored on restart. Tested on Home Assistant 2026.11 (thermostats, covers, light group, restart).
+- 42 more automated checks (144 in total).
+
 ## [1.2.1] — 2026-11-05
 
 ### Modifié
@@ -70,6 +88,7 @@ First public release.
 - Visual editor in French and English.
 - 78 automated checks in Chrome (GitHub Actions).
 
+[1.3.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.3.0
 [1.2.1]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.2.1
 [1.2.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.2.0
 [1.1.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.1.0

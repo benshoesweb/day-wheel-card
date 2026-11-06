@@ -10,12 +10,16 @@
  *   input_datetime.*  heure (réveil…) — repère à faire glisser
  *   time.*            heure d'un appareil — repère à faire glisser
  *   sensor.*          horodatage (prochaine alarme du téléphone…) — repère en lecture seule
+ *                     Avec « target » (thermostat, volet, lumière), chaque plage porte aussi une valeur
+ *                     (température, position, luminosité) réglée au centre avec − / +, rangée dans les
+ *                     données de la plage (data) et appliquée par le blueprint day_wheel_schedule.yaml
  *   calendar.*        événements du jour — arcs en lecture seule
  * Autour : nuit (coucher → lever du soleil), aiguille de l'heure actuelle, jours de la semaine.
  * Noms des entités comme dans Home Assistant (hass.formatEntityName, sinon friendly_name).
  *
  * Options :
- *   layers            1 à 6 anneaux, de l'extérieur vers l'intérieur : entity, name, color, icon
+ *   layers            1 à 6 anneaux, de l'extérieur vers l'intérieur : entity, name, color, icon,
+ *                     target (planning : climate.* / cover.* / light.* à piloter), min, max, step
  *   name              titre de la carte (en-tête standard de Home Assistant, comme les autres cartes)
  *   orientation       midnight_top (minuit en haut, défaut) | noon_top (midi en haut)
  *   snap              pas de réglage en minutes : 5 | 10 | 15 (défaut) | 30 | 60
@@ -47,7 +51,16 @@
   // palette: theme — couleurs du thème Home Assistant (accent en dernier : il vaut souvent la couleur principale)
   const THEME_PALETTE = ['primary-color', 'success-color', 'warning-color', 'info-color', 'error-color', 'accent-color']
     .map((v, i) => `var(--${v}, ${PALETTE[i]})`);
+  // Valeur de chaque plage d'un planning qui pilote un appareil (« target ») : rangée dans les données
+  // de la plage (data), sous le nom du champ du service Home Assistant correspondant.
+  // Home Assistant l'expose en attribut du planning pendant la plage ; le blueprint l'applique.
+  const TARGETS = {
+    climate: { key: 'temperature', unit: '°C', min: 7, max: 35, step: 0.5, def: 20, icon: 'mdi:thermostat' },
+    cover: { key: 'position', unit: '%', min: 0, max: 100, step: 10, def: 100, icon: 'mdi:window-shutter' },
+    light: { key: 'brightness_pct', unit: '%', min: 10, max: 100, step: 10, def: 100, icon: 'mdi:lightbulb-group' },
+  };
   const LONG_PRESS_MS = 550;
+  const VALUE_SAVE_MS = 600;
   const DAY = 1440;
 
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -79,6 +92,15 @@
     return clamp((p[0] || 0) * 60 + (p[1] || 0) + (p[2] || 0) / 60, 0, DAY);
   };
   const toHMS = (m) => (m >= DAY ? '24:00:00' : `${pad(m / 60)}:${pad(m % 60)}:00`);
+  // Plage -> format de Home Assistant (données personnalisées conservées)
+  const serBlock = (b) => ({ from: toHMS(b.s), to: toHMS(b.e), ...(b.data && typeof b.data === 'object' ? { data: b.data } : {}) });
+  const num = (v, d) => { const n = Number(v); return v !== null && v !== undefined && v !== '' && Number.isFinite(n) ? n : d; };
+  // Valeur affichée : « 21,5° » (court, sur l'anneau) ou « 21,5 °C », « 60 % »
+  const fmtVal = (L, v, spec, short) => {
+    const n = new Intl.NumberFormat(L === 'fr' ? 'fr-FR' : 'en-US', { maximumFractionDigits: 2 }).format(v);
+    if (spec.key === 'temperature') return short ? `${n}°` : `${n} ${spec.unit}`;
+    return short || L !== 'fr' ? `${n}%` : `${n}\u00a0%`;
+  };
   const hhmm = (m) => (m >= DAY ? '24:00' : `${pad(m / 60)}:${pad(m % 60)}`);
   const dur = (m, L) => {
     const h = Math.floor(m / 60);
@@ -115,6 +137,9 @@
       sec_layers: 'Anneaux ({n}/6), de l\'extérieur vers l\'intérieur', add: '+ Ajouter', layer: 'Anneau', entity: 'Entité',
       layer_name: 'Nom', color: 'Couleur', icon: 'Icône', up: 'Monter', down: 'Descendre', remove: 'Supprimer',
       layers_hint: 'Planning (schedule) : plages modifiables au doigt. input_datetime / time : heure à faire glisser. Capteur horodatage : repère. Calendrier : événements du jour.',
+      target: 'Piloter (thermostat, volet ou lumière)',
+      target_hint: 'Planning + « Piloter » : chaque plage reçoit une température, une position de volet ou une luminosité, réglée au centre avec − / +. Le blueprint Day Wheel l\'applique à l\'heure dite, même tableau de bord fermé. Pour plusieurs lumières, créez un groupe de lumières (Entrées › Groupe).',
+      inc: 'Augmenter', dec: 'Diminuer', value: 'Valeur',
     },
     en: {
       title: 'My day', today: 'Today', tomorrow: 'Tomorrow',
@@ -141,6 +166,9 @@
       sec_layers: 'Rings ({n}/6), from outside to inside', add: '+ Add', layer: 'Ring', entity: 'Entity',
       layer_name: 'Name', color: 'Color', icon: 'Icon', up: 'Move up', down: 'Move down', remove: 'Remove',
       layers_hint: 'Schedule: time ranges you edit with a finger. input_datetime / time: a time you drag. Timestamp sensor: marker. Calendar: today\'s events.',
+      target: 'Control (thermostat, cover or light)',
+      target_hint: 'Schedule + "Control": each time range gets a temperature, a cover position or a brightness, set in the center with − / +. The Day Wheel blueprint applies it on time, even with the dashboard closed. For several lights, create a light group (Helpers › Group).',
+      inc: 'Increase', dec: 'Decrease', value: 'Value',
     },
   };
   const langOf = (hass) => {
@@ -285,6 +313,11 @@
     .c-btn.danger { background: rgb(229 72 77 / .2); color: #e5484d; }
     .c-btn ha-icon { --mdc-icon-size: 18px; }
     .c-err { color: #e5484d; }
+    .c-val { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .c-val b { font-size: clamp(14px, 5.2cqw, 22px); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 2.4em; }
+    .c-val .c-btn { width: 28px; height: 28px; }
+    .c-line .c-v { opacity: .8; font-variant-numeric: tabular-nums; }
+    .arc-val { font-variant-numeric: tabular-nums; }
 
     .days { display: flex; justify-content: center; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
     .day { all: unset; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; position: relative;
@@ -366,6 +399,7 @@
       let key = null;
       try { key = JSON.stringify(config); } catch (e) { key = null; }
       if (key && key === this._cfgKey && this._root) return;
+      if (this._config) this._flushValue();
       this._cfgKey = key;
       this._config = { ...config, layers };
       this._sel = null;
@@ -387,6 +421,7 @@
     }
 
     disconnectedCallback() {
+      this._flushValue();
       clearInterval(this._tick);
       this._tick = null;
       this._disconnect();
@@ -589,10 +624,45 @@
       return haEntityName(this._hass, layer.entity) || layer.entity;
     }
 
+    // Valeur pilotée par un planning (« target ») : nom, unité, bornes et pas, d'après l'appareil
+    _spec(layer) {
+      if (!layer || kindOf(layer.entity) !== 'schedule') return null;
+      const target = typeof layer.target === 'string' ? layer.target.trim() : '';
+      const domain = target.split('.')[0];
+      const base = TARGETS[domain];
+      if (!base || !target.split('.')[1]) return null;
+      const st = this._hass && this._hass.states[target];
+      const a = (st && st.attributes) || {};
+      const spec = { ...base, target, domain };
+      if (domain === 'climate') {
+        const us = this._hass && this._hass.config && this._hass.config.unit_system;
+        spec.unit = (us && us.temperature) || '°C';
+        const f = /F/.test(spec.unit);
+        spec.min = num(a.min_temp, f ? 45 : 7);
+        spec.max = num(a.max_temp, f ? 95 : 35);
+        spec.step = num(a.target_temp_step, f ? 1 : 0.5);
+        spec.def = f ? 68 : 20;
+      }
+      ['min', 'max', 'step'].forEach((k) => { spec[k] = num(layer[k], spec[k]); });
+      if (!(spec.step > 0)) spec.step = base.step;
+      if (spec.max < spec.min) spec.max = spec.min;
+      spec.def = clamp(spec.def, spec.min, spec.max);
+      return spec;
+    }
+
+    _val(b, spec) {
+      if (!b || !spec || !b.data || typeof b.data !== 'object') return null;
+      return num(b.data[spec.key], null);
+    }
+
+    _stepVal(v, spec) { return clamp(r2(spec.min + Math.round((v - spec.min) / spec.step) * spec.step), spec.min, spec.max); }
+
     _icon(layer) {
       if (layer.icon) return layer.icon;
       const st = this._hass && this._hass.states[layer.entity];
       if (st && st.attributes && st.attributes.icon) return st.attributes.icon;
+      const spec = this._spec(layer);
+      if (spec) return spec.icon;
       return { schedule: 'mdi:calendar-clock', calendar: 'mdi:calendar', marker: 'mdi:alarm' }[kindOf(layer.entity)] || 'mdi:help-circle-outline';
     }
 
@@ -654,6 +724,7 @@
         if (!b) return;
         const act = b.getAttribute('data-act');
         if (act === 'delete') this._deleteSel();
+        if (act === 'inc' || act === 'dec') this._adjust(act === 'inc' ? 1 : -1);
         if (act === 'close') { this._sel = null; this._render(); }
       });
       this._days.addEventListener('click', (e) => {
@@ -675,6 +746,10 @@
         if (!this._sel) return;
         if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this._deleteSel(); }
         if (e.key === 'Escape') { this._sel = null; this._render(); }
+        if (['ArrowUp', 'ArrowDown', '+', '-'].includes(e.key) && this._spec(this._layers()[this._sel.li])) {
+          e.preventDefault();
+          this._adjust(e.key === 'ArrowUp' || e.key === '+' ? 1 : -1);
+        }
       });
       // Nouveaux éléments : les caches de rendu ne valent plus
       this._centerHtml = null;
@@ -733,6 +808,7 @@
         const col = this._color(layer, li);
         const kind = kindOf(layer.entity);
         rings += `<circle class="track" cx="200" cy="200" r="${R.r}" stroke-width="${R.w}"></circle>`;
+        const spec = this._spec(layer);
         if (kind === 'schedule' || kind === 'calendar') {
           const blocks = this._drag && this._drag.li === li ? this._drag.blocks : this._blocks(layer, shown);
           (blocks || []).forEach((b, i) => {
@@ -744,7 +820,23 @@
             const m0 = b.s + Math.min(inset, (b.e - b.s) / 2 - 0.01);
             const m1 = b.e - Math.min(inset, (b.e - b.s) / 2 - 0.01);
             const title = kind === 'calendar' ? `${b.title} · ` : '';
-            rings += `<path class="${cls}" data-li="${li}" data-i="${i}" d="${arcPath(R.r, m0, Math.max(m1, m0 + 0.01), rot)}" stroke-width="${R.w}" style="stroke:${col};--dwc-glow:${col}"><title>${esc(title + hhmm(b.s))} – ${esc(hhmm(b.e))}</title></path>`;
+            const v = this._val(b, spec);
+            const vt = v == null ? '' : ` · ${fmtVal(L, v, spec)}`;
+            rings += `<path class="${cls}" data-li="${li}" data-i="${i}" d="${arcPath(R.r, m0, Math.max(m1, m0 + 0.01), rot)}" stroke-width="${R.w}" style="stroke:${col};--dwc-glow:${col}"><title>${esc(title + hhmm(b.s))} – ${esc(hhmm(b.e))}${esc(vt)}</title></path>`;
+            if (v != null) {
+              // Valeur écrite sur la plage, si elle y tient
+              const label = fmtVal(L, v, spec, true);
+              const fs = r2(Math.min(10, R.w * 0.5));
+              const room = (2 * Math.PI * R.r * (b.e - b.s)) / DAY - R.w * 0.6;
+              if (fs >= 6.5 && room >= label.length * fs * 0.62 + 2) {
+                // Écrite le long de l'anneau, jamais à l'envers
+                const am = angleOf((b.s + b.e) / 2, rot);
+                const [tx, ty] = pt(R.r, am);
+                let ta = (((am + 90) % 360) + 360) % 360;
+                if (ta > 90 && ta < 270) ta -= 180;
+                rings += `<text class="label-ring arc-val" data-li="${li}" data-i="${i}" x="${tx}" y="${ty}" transform="rotate(${r2(ta)} ${tx} ${ty})" style="font-size:${fs}px">${esc(label)}</text>`;
+              }
+            }
             if (sel && kind === 'schedule' && editable) {
               [b.s, b.e].forEach((m, k) => {
                 const [x, y] = pt(R.r, angleOf(m, rot));
@@ -820,8 +912,10 @@
           const t = shown.today ? shown.now.min : -1;
           const cur = blocks.find((b) => t >= b.s && t < b.e);
           const next = blocks.find((b) => b.s > t);
-          if (cur) out.push({ col, name, icon: this._icon(layer), time: `→ ${hhmm(cur.e)}`, text: `${name} · ${tr(L, 'until', { t: hhmm(cur.e) })}`, on: true });
-          else if (next) out.push({ col, name, icon: this._icon(layer), time: hhmm(next.s), text: `${name} · ${tr(L, 'at', { t: hhmm(next.s) })}` });
+          const spec = this._spec(layer);
+          const vOf = (b) => { const v = this._val(b, spec); return v == null ? '' : fmtVal(L, v, spec, true); };
+          if (cur) { const val = vOf(cur); out.push({ col, name, icon: this._icon(layer), time: `→ ${hhmm(cur.e)}`, val, text: `${name} · ${val ? `${val} · ` : ''}${tr(L, 'until', { t: hhmm(cur.e) })}`, on: true }); }
+          else if (next) { const val = vOf(next); out.push({ col, name, icon: this._icon(layer), time: hhmm(next.s), val, text: `${name} · ${tr(L, 'at', { t: hhmm(next.s) })}${val ? ` · ${val}` : ''}` }); }
         } else if (kind === 'marker') {
           const mk = this._markerTime(layer, shown);
           if (mk && (!shown.today || mk.m >= shown.now.min)) out.push({ col, name, icon: this._icon(layer), time: hhmm(mk.m), text: `${name} · ${hhmm(mk.m)}` });
@@ -837,7 +931,9 @@
         const layer = this._layers()[d.li];
         if (d.blocks) {
           const b = d.blocks[d.i];
-          html = `<div class="c-day">${esc(this._name(layer))}</div><div class="c-big">${esc(hhmm(b.s))}<br>${esc(hhmm(b.e))}</div><div class="c-hint">${esc(dur(b.e - b.s, L))}</div>`;
+          const spec = this._spec(layer);
+          const v = this._val(b, spec);
+          html = `<div class="c-day">${esc(this._name(layer))}</div><div class="c-big">${esc(hhmm(b.s))}<br>${esc(hhmm(b.e))}</div><div class="c-hint">${esc(dur(b.e - b.s, L))}${v == null ? '' : ` · ${esc(fmtVal(L, v, spec))}`}</div>`;
         } else {
           html = `<div class="c-day">${esc(this._name(layer))}</div><div class="c-big">${esc(hhmm(d.m))}</div>`;
         }
@@ -849,9 +945,21 @@
         const isSched = kindOf(layer.entity) === 'schedule';
         const can = isSched && this._canEdit();
         const title = kindOf(layer.entity) === 'calendar' ? (b.title || this._name(layer)) : this._name(layer);
+        const spec = isSched ? this._spec(layer) : null;
+        let val = '';
+        let hint = `${dur(b.e - b.s, L)}${isSched ? ` · ${can ? tr(L, 'hint_edit') : tr(L, 'admin_only')}` : ''}`;
+        if (spec) {
+          // Valeur de la plage (température, position, luminosité), réglée avec − / +
+          const v = this._val(b, spec);
+          const shownVal = v == null ? '—' : fmtVal(L, v, spec);
+          const btn = (act, icon, label, off) => `<button class="c-btn" data-act="${act}" title="${esc(label)}" aria-label="${esc(label)}"${off ? ' disabled' : ''}><ha-icon icon="${icon}"></ha-icon></button>`;
+          val = `<div class="c-val">${can ? btn('dec', 'mdi:minus', tr(L, 'dec'), v != null && v <= spec.min) : ''}<b aria-label="${esc(tr(L, 'value'))}">${esc(shownVal)}</b>${can ? btn('inc', 'mdi:plus', tr(L, 'inc'), v != null && v >= spec.max) : ''}</div>`;
+          hint = can || this._geom().compact ? dur(b.e - b.s, L) : `${dur(b.e - b.s, L)} · ${tr(L, 'admin_only')}`;
+        }
         html = `<div class="c-day">${esc(title)}</div>
           <div class="c-big" style="font-size:clamp(13px,5.4cqw,22px);white-space:nowrap">${esc(hhmm(b.s))} – ${esc(hhmm(b.e))}</div>
-          <div class="c-hint">${esc(dur(b.e - b.s, L))}${isSched ? ` · ${esc(can ? tr(L, 'hint_edit') : tr(L, 'admin_only'))}` : ''}</div>
+          ${val}
+          <div class="c-hint">${esc(hint)}</div>
           <div class="c-btns">
             ${can ? `<button class="c-btn danger" data-act="delete" title="${esc(tr(L, 'delete'))}" aria-label="${esc(tr(L, 'delete'))}"><ha-icon icon="mdi:trash-can-outline"></ha-icon></button>` : ''}
             <button class="c-btn" data-act="close" title="${esc(tr(L, 'close'))}" aria-label="${esc(tr(L, 'close'))}"><ha-icon icon="mdi:close"></ha-icon></button>
@@ -863,7 +971,7 @@
         const lines = this._lines(shown).slice(0, compact ? 0 : 3);
         html = `<div class="c-big">${esc(big)}</div>
           ${sub ? `<div class="c-day">${esc(sub)}</div>` : ''}
-          ${compact ? '' : `<div class="c-lines">${lines.length ? lines.map((l) => `<div class="c-line${l.on ? ' on' : ''}" title="${esc(l.text)}"><ha-icon icon="${esc(l.icon)}" style="color:${l.col}"></ha-icon><b>${esc(l.time)}</b></div>`).join('') : `<div class="c-line">${esc(tr(L, 'nothing'))}</div>`}</div>`}`;
+          ${compact ? '' : `<div class="c-lines">${lines.length ? lines.map((l) => `<div class="c-line${l.on ? ' on' : ''}" title="${esc(l.text)}"><ha-icon icon="${esc(l.icon)}" style="color:${l.col}"></ha-icon><b>${esc(l.time)}</b>${l.val ? `<span class="c-v">${esc(l.val)}</span>` : ''}</div>`).join('') : `<div class="c-line">${esc(tr(L, 'nothing'))}</div>`}</div>`}`;
       }
       if (this._status) html += `<div class="c-hint${this._status.error ? ' c-err' : ''}">${esc(this._status.text)}</div>`;
       if (this._centerHtml !== html) { this._centerHtml = html; this._center.innerHTML = html; }
@@ -1082,11 +1190,56 @@
       if (hi - lo < snap) return;
       s = clamp(s, lo, Math.max(lo, hi - len));
       const e = Math.min(hi, s + len);
-      const nb = [...blocks.map((b) => ({ ...b })), { s, e }].sort((a, b) => a.s - b.s);
+      const created = { s, e };
+      const spec = this._spec(layer);
+      if (spec) {
+        // Valeur de départ : celle de la plage voisine, sinon la valeur par défaut
+        const near = [prev, next].map((b) => this._val(b, spec)).find((v) => v != null);
+        created.data = { [spec.key]: near ?? spec.def };
+      }
+      const nb = [...blocks.map((b) => ({ ...b })), created].sort((a, b) => a.s - b.s);
       this._sel = { li, i: nb.findIndex((b) => b.s === s) };
       this._haptic('medium');
       this._save(li, nb);
       void p;
+    }
+
+    // − / + : valeur de la plage choisie, affichée aussitôt et enregistrée après une courte pause
+    _adjust(dir) {
+      const sel = this._sel;
+      if (!sel || !this._canEdit()) return;
+      const layer = this._layers()[sel.li];
+      const spec = this._spec(layer);
+      const it = spec && this._item(layer.entity);
+      if (!it) return;
+      const blocks = (this._blocks(layer, this._shown()) || []).map((b) => ({ ...b }));
+      const b = blocks[sel.i];
+      if (!b) return;
+      const cur = this._val(b, spec);
+      const v = cur == null ? spec.def : this._stepVal(cur + dir * spec.step, spec);
+      if (v === cur) return;
+      b.data = { ...(b.data && typeof b.data === 'object' ? b.data : {}), [spec.key]: v };
+      this._haptic('selection');
+      const day = this._shown().day;
+      // Une valeur encore en attente sur ce planning est remplacée (le nouvel envoi la contient) ;
+      // sur un autre planning, elle part tout de suite
+      const same = this._valPending && this._valPending.li === sel.li;
+      const before = same ? this._valPending.before : it;
+      if (same) { clearTimeout(this._valPending.timer); this._valPending = null; } else this._flushValue();
+      this._items.set(it.id, { ...it, [DAY_KEYS[day]]: blocks.map(serBlock) });
+      const pending = { li: sel.li, before, run: () => this._save(sel.li, blocks, before, day) };
+      pending.timer = setTimeout(() => { if (this._valPending === pending) { this._valPending = null; pending.run(); } }, VALUE_SAVE_MS);
+      this._valPending = pending;
+      this._render();
+    }
+
+    // Enregistre tout de suite une valeur en attente (avant toute autre modification)
+    _flushValue() {
+      const p = this._valPending;
+      if (!p) return;
+      this._valPending = null;
+      clearTimeout(p.timer);
+      p.run();
     }
 
     _deleteSel() {
@@ -1101,19 +1254,20 @@
       this._save(sel.li, blocks.filter((_, k) => k !== sel.i));
     }
 
-    async _save(li, blocks) {
+    async _save(li, blocks, original, day) {
+      this._flushValue();
       const layer = this._layers()[li];
       const it = this._item(layer.entity);
       if (!it || !this._canEdit()) return;
-      const dayKey = DAY_KEYS[this._shown().day];
-      const ser = (b) => ({ from: toHMS(b.s), to: toHMS(b.e), ...(b.data && typeof b.data === 'object' ? { data: b.data } : {}) });
+      const dayKey = DAY_KEYS[day == null ? this._shown().day : day];
+      const ser = serBlock;
       const msg = { type: 'schedule/update', schedule_id: it.id, name: it.name };
       if (it.icon) msg.icon = it.icon;
       DAY_KEYS.forEach((k) => {
         msg[k] = k === dayKey ? blocks.map(ser) : [].concat(it[k] || []).map((b) => ({ from: b.from, to: b.to, ...(b.data ? { data: b.data } : {}) }));
       });
       // Affichage immédiat, rétabli si Home Assistant refuse
-      const before = it;
+      const before = original || it;
       const after = { ...it, [dayKey]: blocks.map(ser) };
       this._items.set(it.id, after);
       this._saving = true;
@@ -1234,7 +1388,7 @@
       this.shadowRoot.querySelectorAll('ha-entity-picker, ha-icon-picker').forEach((el) => { el.hass = hass; });
     }
 
-    _signature() { return JSON.stringify([langOf(this._hass), this._config.layers.length, this._config.palette === 'theme']); }
+    _signature() { return JSON.stringify([langOf(this._hass), this._config.layers.map((l) => kindOf(l.entity)), this._config.palette === 'theme']); }
 
     // Couleur d'un anneau sans couleur choisie (palette de la carte ou du thème)
     _defaultColor(i) {
@@ -1281,6 +1435,7 @@
               <input type="color" data-swatch value="${esc(toHex(l.color) || PALETTE[i % PALETTE.length])}">
               <input type="text" data-lfield="color" value="${esc(l.color || '')}" placeholder="${esc(c.palette === 'theme' ? t('theme_ha') : PALETTE[i % PALETTE.length])}"></div></div>
             <div class="field"><ha-icon-picker data-lkey="icon"></ha-icon-picker></div>
+            ${kindOf(l.entity) === 'schedule' ? '<div class="field"><ha-entity-picker data-lkey="target"></ha-entity-picker></div>' : ''}
           </div>
         </div>`).join('');
       this.shadowRoot.innerHTML = `
@@ -1303,6 +1458,7 @@
             ${layers}
             <button class="add" data-add ${c.layers.length >= 6 ? 'disabled' : ''}>${esc(t('add'))}</button>
             <div class="hint">${esc(t('layers_hint'))}</div>
+            <div class="hint">${esc(t('target_hint'))}</div>
           </div>
         </div>`;
       this._bind();
@@ -1336,13 +1492,19 @@
           if (key === 'entity') {
             p.label = this._t('entity');
             p.includeDomains = ['schedule', 'input_datetime', 'time', 'sensor', 'calendar'];
+          } else if (key === 'target') {
+            p.label = this._t('target');
+            p.includeDomains = Object.keys(TARGETS);
           } else p.label = this._t('icon');
           p.addEventListener('value-changed', (ev) => {
             ev.stopPropagation();
             const v = ev.detail.value || undefined;
             if ((this._config.layers[i] || {})[key] === v) return;
             if (key === 'entity' && !v) return;
-            this._setLayer(i, { [key]: v });
+            // « Piloter » n'existe que pour un planning
+            const patch = key === 'entity' && kindOf(v) !== 'schedule' ? { entity: v, target: undefined } : { [key]: v };
+            this._setLayer(i, patch);
+            if (this._signature() !== this._sig) this._render();
           });
         });
         box.querySelectorAll('[data-lfield]').forEach((inp) => {

@@ -1,0 +1,259 @@
+blueprint:
+  name: Day Wheel – planning du chauffage, des volets et des lumières
+  author: benshoesweb
+  description: >-
+    Applique aux appareils les valeurs réglées sur les plages d'un planning dans Day Wheel Card
+    (option « Piloter ») : la température des thermostats, la position des volets roulants,
+    la luminosité des lumières. Au début de chaque plage, la valeur de la plage est envoyée ;
+    hors des plages, la valeur « hors plages » (ou l'extinction) est appliquée. Une valeur modifiée
+    pendant une plage en cours est appliquée aussitôt, et tout est rétabli au redémarrage de
+    Home Assistant. Pour piloter plusieurs lumières ensemble, créez un groupe de lumières
+    (Paramètres › Appareils et services › Entrées › Groupe).
+
+
+    Applies the values set on a schedule's time ranges in Day Wheel Card ("Control" option)
+    to your devices: thermostat temperature, cover position, light brightness. At the start of
+    each range its value is sent; outside the ranges, the "outside" value (or turning off)
+    applies. A value changed during the current range applies right away, and everything is
+    restored when Home Assistant restarts. To control several lights together, create a light
+    group (Settings › Devices & services › Helpers › Group).
+  domain: automation
+  source_url: https://github.com/benshoesweb/day-wheel-card/blob/main/blueprints/day_wheel_schedule.yaml
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    schedule_entity:
+      name: Planning / Schedule
+      description: >-
+        Le planning réglé dans la carte (anneau avec « Piloter »).
+        The schedule set in the card (ring with "Control").
+      selector:
+        entity:
+          filter:
+            - domain: schedule
+    targets:
+      name: Appareils pilotés / Controlled devices
+      description: >-
+        Thermostats, volets roulants ou lumières (groupes de lumières compris).
+        Thermostats, covers or lights (light groups included).
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain:
+                - climate
+                - cover
+                - light
+    climate_section:
+      name: Thermostats
+      icon: mdi:thermostat
+      input:
+        temperature_default:
+          name: Température d'une plage sans valeur / Temperature of a range without a value
+          default: 20
+          selector:
+            number:
+              min: 5
+              max: 35
+              step: 0.5
+              unit_of_measurement: "°"
+              mode: box
+        climate_outside:
+          name: Hors des plages / Outside the ranges
+          default: temperature
+          selector:
+            select:
+              options:
+                - label: Température hors plages / Outside temperature
+                  value: temperature
+                - label: Éteindre le thermostat / Turn the thermostat off
+                  value: "off"
+                - label: Ne rien faire / Do nothing
+                  value: nothing
+        temperature_outside:
+          name: Température hors plages / Outside temperature
+          default: 17
+          selector:
+            number:
+              min: 5
+              max: 35
+              step: 0.5
+              unit_of_measurement: "°"
+              mode: box
+    cover_section:
+      name: Volets / Covers
+      icon: mdi:window-shutter
+      input:
+        position_default:
+          name: Position d'une plage sans valeur / Position of a range without a value
+          description: 0 = fermé, 100 = ouvert. 0 = closed, 100 = open.
+          default: 100
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 5
+              unit_of_measurement: "%"
+        cover_outside:
+          name: Hors des plages / Outside the ranges
+          default: position
+          selector:
+            select:
+              options:
+                - label: Position hors plages / Outside position
+                  value: position
+                - label: Ne rien faire / Do nothing
+                  value: nothing
+        position_outside:
+          name: Position hors plages / Outside position
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 5
+              unit_of_measurement: "%"
+    light_section:
+      name: Lumières / Lights
+      icon: mdi:lightbulb-group
+      input:
+        brightness_default:
+          name: Luminosité d'une plage sans valeur / Brightness of a range without a value
+          default: 100
+          selector:
+            number:
+              min: 1
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+        light_outside:
+          name: Hors des plages / Outside the ranges
+          default: "off"
+          selector:
+            select:
+              options:
+                - label: Éteindre / Turn off
+                  value: "off"
+                - label: Ne rien faire / Do nothing
+                  value: nothing
+
+mode: restart
+
+triggers:
+  # Début ou fin d'une plage, valeur modifiée dans la carte (attribut du planning)
+  - trigger: state
+    entity_id: !input schedule_entity
+  - trigger: homeassistant
+    event: start
+
+variables:
+  schedule_entity: !input schedule_entity
+  targets: !input targets
+  temperature_default: !input temperature_default
+  climate_outside: !input climate_outside
+  temperature_outside: !input temperature_outside
+  position_default: !input position_default
+  cover_outside: !input cover_outside
+  position_outside: !input position_outside
+  brightness_default: !input brightness_default
+  light_outside: !input light_outside
+
+conditions:
+  # Planning disponible, et seulement un vrai changement : début / fin de plage ou valeur modifiée
+  # (pas la simple mise à jour de « next_event » quand un autre jour est modifié)
+  - condition: template
+    value_template: >-
+      {% set ok = states(schedule_entity) in ['on', 'off'] %}
+      {% if not ok %}false
+      {% elif trigger.platform != 'state' or trigger.from_state is none %}true
+      {% elif trigger.from_state.state != trigger.to_state.state %}true
+      {% else %}
+        {% set ns = namespace(changed=false) %}
+        {% for k in ['temperature', 'position', 'brightness_pct'] %}
+          {% if trigger.from_state.attributes.get(k) != trigger.to_state.attributes.get(k) %}
+            {% set ns.changed = true %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.changed }}
+      {% endif %}
+
+actions:
+  - variables:
+      active: "{{ is_state(schedule_entity, 'on') }}"
+      t_value: "{{ state_attr(schedule_entity, 'temperature') }}"
+      p_value: "{{ state_attr(schedule_entity, 'position') }}"
+      b_value: "{{ state_attr(schedule_entity, 'brightness_pct') }}"
+      temperature: >-
+        {{ (t_value | float) if (t_value is not none and t_value | is_number) else (temperature_default | float) }}
+      position: >-
+        {% if active %}{{ (p_value | int) if (p_value is not none and p_value | is_number) else (position_default | int) }}
+        {% else %}{{ position_outside | int }}{% endif %}
+      brightness: >-
+        {{ (b_value | int) if (b_value is not none and b_value | is_number) else (brightness_default | int) }}
+      target_list: "{{ [targets] if targets is string else targets }}"
+  - repeat:
+      for_each: "{{ target_list }}"
+      sequence:
+        - variables:
+            domain: "{{ repeat.item.split('.')[0] }}"
+        - choose:
+            # Thermostat pendant une plage : allumé si besoin, puis température de la plage
+            - conditions: "{{ domain == 'climate' and active }}"
+              sequence:
+                - if: "{{ is_state(repeat.item, 'off') }}"
+                  then:
+                    - action: climate.turn_on
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      continue_on_error: true
+                - action: climate.set_temperature
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    temperature: "{{ temperature }}"
+                  continue_on_error: true
+            - conditions: "{{ domain == 'climate' and climate_outside == 'temperature' }}"
+              sequence:
+                - action: climate.set_temperature
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    temperature: "{{ temperature_outside }}"
+                  continue_on_error: true
+            - conditions: "{{ domain == 'climate' and climate_outside == 'off' }}"
+              sequence:
+                - action: climate.turn_off
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  continue_on_error: true
+            # Volet : position (ou simplement ouvert / fermé s'il ne règle pas de position)
+            - conditions: "{{ domain == 'cover' and (active or cover_outside == 'position') }}"
+              sequence:
+                - if: "{{ (state_attr(repeat.item, 'supported_features') | int(0)) | bitwise_and(4) > 0 }}"
+                  then:
+                    - action: cover.set_cover_position
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      data:
+                        position: "{{ position }}"
+                      continue_on_error: true
+                  else:
+                    - action: "{{ 'cover.open_cover' if position | int > 0 else 'cover.close_cover' }}"
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      continue_on_error: true
+            # Lumières : luminosité de la plage, éteintes hors plages
+            - conditions: "{{ domain == 'light' and active }}"
+              sequence:
+                - action: light.turn_on
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    brightness_pct: "{{ brightness }}"
+                  continue_on_error: true
+            - conditions: "{{ domain == 'light' and light_outside == 'off' }}"
+              sequence:
+                - action: light.turn_off
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  continue_on_error: true
