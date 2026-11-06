@@ -27,6 +27,8 @@
  *   show_days         true (défaut) : jours de la semaine (plannings et calendriers)
  *   show_legend       true (défaut) : légende des anneaux sous le cadran
  *   haptics           true (défaut) : retour haptique au doigt
+ *   summary           true (défaut) : appui long sur le centre = résumé (semaine des plannings, valeurs,
+ *                     heures, événements, réglages) dans une fenêtre aux couleurs du thème
  *   knob_theme        metal (défaut) | ha (cadran, anneaux, jour / nuit et centre aux couleurs du thème HA)
  *                     | glass | neumorph | brass | carbon | neon
  *   palette           default (défaut) : palette de la carte | theme : couleurs du thème HA
@@ -140,6 +142,13 @@
       target: 'Piloter (thermostat, volet ou lumière)',
       target_hint: 'Planning + « Piloter » : chaque plage reçoit une température, une position de volet ou une luminosité, réglée au centre avec − / +. Le blueprint Day Wheel l\'applique à l\'heure dite, même tableau de bord fermé. Pour plusieurs lumières, créez un groupe de lumières (Entrées › Groupe).',
       inc: 'Augmenter', dec: 'Diminuer', value: 'Valeur',
+      summary: 'Résumé', summary_open: 'Résumé (appui long)', show_summary: 'Résumé par appui long sur le centre',
+      k_schedule: 'Planning', k_marker: 'Heure', k_sensor: 'Horodatage', k_calendar: 'Calendrier',
+      controls: 'pilote {n}', no_range: 'Aucune plage', no_event: 'Aucun événement', no_time: 'Pas d\'heure ce jour-là',
+      events_of: 'Événements · {d}', settings: 'Réglages de la carte', s_snap: 'Pas de réglage', s_orientation: 'Orientation',
+      s_style: 'Style du centre', s_palette: 'Couleurs des anneaux', s_theme: 'Thème', s_sun: 'Soleil', s_rights: 'Modification',
+      r_admin: 'autorisée (administrateur)', r_read: 'lecture seule (réservée aux administrateurs)',
+      sun_line: 'lever {a} · coucher {b}', week_total: '{t} sur la semaine',
     },
     en: {
       title: 'My day', today: 'Today', tomorrow: 'Tomorrow',
@@ -169,6 +178,13 @@
       target: 'Control (thermostat, cover or light)',
       target_hint: 'Schedule + "Control": each time range gets a temperature, a cover position or a brightness, set in the center with − / +. The Day Wheel blueprint applies it on time, even with the dashboard closed. For several lights, create a light group (Helpers › Group).',
       inc: 'Increase', dec: 'Decrease', value: 'Value',
+      summary: 'Summary', summary_open: 'Summary (long press)', show_summary: 'Summary on long press of the center',
+      k_schedule: 'Schedule', k_marker: 'Time', k_sensor: 'Timestamp', k_calendar: 'Calendar',
+      controls: 'controls {n}', no_range: 'No time range', no_event: 'No event', no_time: 'No time that day',
+      events_of: 'Events · {d}', settings: 'Card settings', s_snap: 'Adjust step', s_orientation: 'Orientation',
+      s_style: 'Center style', s_palette: 'Ring colors', s_theme: 'Theme', s_sun: 'Sun', s_rights: 'Editing',
+      r_admin: 'allowed (administrator)', r_read: 'read only (administrators only)',
+      sun_line: 'sunrise {a} · sunset {b}', week_total: '{t} over the week',
     },
   };
   const langOf = (hass) => {
@@ -332,6 +348,71 @@
     .lg ha-icon { --mdc-icon-size: 17px; }
     .lg.on ha-icon { filter: drop-shadow(0 0 3px currentColor); }
     .lg:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; border-radius: 4px; }
+    .center.can-sum { cursor: pointer; -webkit-touch-callout: none; }
+    .center:focus { outline: none; }
+    .center:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 3px; }
+
+    /* Résumé : fenêtre au premier plan (dialog), couleurs du thème HA ou du thème choisi */
+    .dlg {
+      --dlg-bg: var(--ha-dialog-surface-background, var(--card-background-color, #fff));
+      --dlg-fg: var(--primary-text-color, #1c1f26);
+      --dlg-muted: var(--secondary-text-color, #6b7280);
+      --dlg-line: var(--divider-color, rgb(0 0 0 / .12));
+      --dlg-soft: var(--secondary-background-color, rgb(127 127 127 / .1));
+      --dlg-accent: var(--primary-color, #03a9f4);
+      box-sizing: border-box; padding: 0; border: none; color: var(--dlg-fg); background: var(--dlg-bg);
+      width: min(640px, calc(100vw - 32px)); max-width: none; max-height: min(86vh, 860px); max-height: min(86dvh, 860px);
+      border-radius: var(--ha-dialog-border-radius, 24px); box-shadow: 0 12px 40px rgb(0 0 0 / .35);
+      font-family: var(--ha-font-family-body, var(--paper-font-body1_-_font-family, inherit));
+      overflow: hidden; flex-direction: column;
+    }
+    .dlg[open] { display: flex; }
+    .dlg:focus { outline: none; }
+    .dlg::backdrop { background: var(--dialog-backdrop-color, rgb(0 0 0 / .45)); }
+    .wrap.forced-dark .dlg { --dlg-bg: #1c1f26; --dlg-fg: #eceff4; --dlg-muted: #a3a9b5; --dlg-line: rgb(255 255 255 / .12); --dlg-soft: rgb(255 255 255 / .06); }
+    .wrap.forced-light .dlg { --dlg-bg: #fff; --dlg-fg: #1c1f26; --dlg-muted: #6b7280; --dlg-line: rgb(0 0 0 / .12); --dlg-soft: rgb(0 0 0 / .04); }
+    .dlg-head { display: flex; align-items: center; gap: 12px; padding: 16px 12px 12px 22px; border-bottom: 1px solid var(--dlg-line); flex: none; }
+    .dlg-head h2 { margin: 0; flex: 1; min-width: 0; font-size: 20px; font-weight: 500; line-height: 1.25; }
+    .dlg-head h2 small { display: block; font-size: 13px; font-weight: 400; color: var(--dlg-muted); margin-top: 2px; }
+    .dlg-x { all: unset; cursor: pointer; flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--dlg-fg); align-self: flex-start; }
+    .dlg-x:hover { background: var(--dlg-soft); }
+    .dlg-x:focus-visible { outline: 2px solid var(--dlg-accent); }
+    .dlg-x ha-icon { --mdc-icon-size: 24px; }
+    .dlg-body { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 6px 22px 22px; flex: 1 1 auto; min-height: 0; }
+    .sm-sec { padding: 14px 0; border-bottom: 1px solid var(--dlg-line); }
+    .sm-sec:last-child { border-bottom: none; }
+    .sm-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .sm-h ha-icon { --mdc-icon-size: 20px; }
+    .sm-h b { font-size: 15px; font-weight: 600; }
+    .sm-kind { font-size: 12px; color: var(--dlg-muted); }
+    .sm-day { display: grid; grid-template-columns: 6.2em 1fr auto; gap: 4px 10px; align-items: start; padding: 5px 8px; border-radius: 8px; font-size: 13px; }
+    .sm-day.today { background: var(--dlg-soft); }
+    .sm-day.today .sm-dn { color: var(--dlg-accent); font-weight: 600; }
+    .sm-dn { padding-top: 2px; }
+    .sm-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
+    .sm-chip { display: inline-flex; gap: 6px; align-items: baseline; padding: 2px 8px; border-radius: 6px; white-space: nowrap; font-variant-numeric: tabular-nums;
+      background: color-mix(in srgb, var(--c) 18%, transparent); border-left: 3px solid var(--c); }
+    .sm-chip em { font-style: normal; font-weight: 600; }
+    .sm-none { color: var(--dlg-muted); padding-top: 2px; }
+    .sm-tot { color: var(--dlg-muted); font-variant-numeric: tabular-nums; padding-top: 2px; white-space: nowrap; }
+    .sm-foot { font-size: 12px; color: var(--dlg-muted); margin-top: 6px; padding: 0 8px; }
+    .sm-row { font-size: 14px; padding: 2px 8px; }
+    .sm-row b { font-variant-numeric: tabular-nums; }
+    .sm-set { display: grid; grid-template-columns: minmax(8em, auto) 1fr; gap: 6px 14px; margin: 0; font-size: 13px; padding: 0 8px; }
+    .sm-set dt { color: var(--dlg-muted); }
+    .sm-set dd { margin: 0; }
+    /* Téléphone (ou écran bas) : plein écran, comme les fenêtres de Home Assistant */
+    @media (max-width: 450px), (max-height: 500px) {
+      .dlg { width: 100vw; height: 100vh; height: 100dvh; max-height: none; border-radius: 0; margin: 0; inset: 0;
+        padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+      .dlg-head { padding-left: 16px; }
+      .dlg-body { padding: 4px 16px 20px; }
+      .sm-day { grid-template-columns: 4.6em 1fr auto; padding: 5px 4px; }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .dlg[open] { animation: dwc-pop .16s ease-out; }
+      @keyframes dwc-pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+    }
     @media (prefers-reduced-motion: reduce) { .arc { transition: none; } }
   `;
 
@@ -422,6 +503,7 @@
 
     disconnectedCallback() {
       this._flushValue();
+      this._closeSummary();
       clearInterval(this._tick);
       this._tick = null;
       this._disconnect();
@@ -700,10 +782,16 @@
             </div>
             <div class="days" role="tablist"></div>
             <div class="legend"></div>
+            <dialog class="dlg" tabindex="-1" aria-labelledby="dwc-sum-${this._uid}">
+              <div class="dlg-head"><h2 id="dwc-sum-${this._uid}"></h2>
+                <button class="dlg-x" data-act="close-summary"><ha-icon icon="mdi:close"></ha-icon></button></div>
+              <div class="dlg-body"></div>
+            </dialog>
           </div>
         </ha-card>`;
       const root = this.shadowRoot;
       this._root = root;
+      this._summaryOpenState = false;
       this._wrap = root.querySelector('.wrap');
       this._svg = root.querySelector('svg');
       this._gFace = root.querySelector('.g-face');
@@ -719,6 +807,42 @@
       svg.addEventListener('pointerup', (e) => this._up(e));
       svg.addEventListener('pointercancel', () => this._cancel());
       svg.addEventListener('contextmenu', (e) => e.preventDefault());
+      // Résumé : appui long sur le centre (ou Entrée quand le centre a le focus)
+      this._dlg = root.querySelector('.dlg');
+      this._dlgTitle = root.querySelector('.dlg-head h2');
+      this._dlgBody = root.querySelector('.dlg-body');
+      const stopHold = () => { clearTimeout(this._holdTimer); this._holdTimer = null; };
+      this._center.addEventListener('pointerdown', (e) => {
+        if (!this._summaryOn() || e.target.closest('[data-act]') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        if (e.pointerType === 'touch') this._lastFinger = Date.now();
+        stopHold();
+        this._holdAt = { x: e.clientX, y: e.clientY };
+        this._holdTimer = setTimeout(() => { this._holdTimer = null; this._haptic('medium'); this._openSummary(); }, LONG_PRESS_MS);
+      });
+      this._center.addEventListener('pointermove', (e) => {
+        if (this._holdTimer && Math.hypot(e.clientX - this._holdAt.x, e.clientY - this._holdAt.y) > 8) stopHold();
+      });
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => this._center.addEventListener(ev, stopHold));
+      this._center.addEventListener('contextmenu', (e) => { if (this._summaryOn()) e.preventDefault(); });
+      this._center.addEventListener('keydown', (e) => {
+        if (e.target !== this._center || !this._summaryOn() || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        this._openSummary(true);
+      });
+      this._dlg.addEventListener('click', (e) => {
+        // Croix, ou clic sur le fond (hors de la fenêtre)
+        if (e.target.closest('[data-act="close-summary"]')) { this._closeSummary(); return; }
+        if (e.target === this._dlg && Date.now() - this._dlgOpenedAt > 400) {
+          const r = this._dlg.getBoundingClientRect();
+          if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) this._closeSummary();
+        }
+      });
+      this._dlg.addEventListener('close', () => {
+        this._summaryOpenState = false;
+        try { this._svg.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
+      });
+      // Les gestes dans la fenêtre ne concernent pas le cadran
+      ['keydown', 'pointerdown'].forEach((ev) => this._dlg.addEventListener(ev, (e) => e.stopPropagation()));
       this._center.addEventListener('click', (e) => {
         const b = e.target.closest('[data-act]');
         if (!b) return;
@@ -877,6 +1001,116 @@
       this._renderCenter(shown, L);
       this._renderDays(shown, L);
       this._renderLegend(shown);
+      this._wrap.classList.toggle('forced-dark', c.theme === 'dark');
+      this._wrap.classList.toggle('forced-light', c.theme === 'light');
+      const sum = this._summaryOn();
+      this._center.classList.toggle('can-sum', sum);
+      if (sum) {
+        this._center.setAttribute('tabindex', '0');
+        this._center.setAttribute('role', 'button');
+        this._center.setAttribute('aria-label', tr(L, 'summary_open'));
+      } else ['tabindex', 'role', 'aria-label'].forEach((a) => this._center.removeAttribute(a));
+      if (this._summaryOpenState) this._renderSummary(shown, L);
+    }
+
+    // ---------- Résumé (appui long sur le centre) ----------
+    _summaryOn() { return !!this._config && this._config.summary !== false; }
+
+    // Ouvert au clavier : focus sur la croix ; au doigt / à la souris : sur la fenêtre (pas d'anneau de focus)
+    _openSummary(keyboard) {
+      if (!this._dlg || !this._summaryOn()) return;
+      this._summaryOpenState = true;
+      this._sumHtml = null;
+      this._renderSummary(this._shown(), langOf(this._hass));
+      this._dlgOpenedAt = Date.now();
+      try { if (!this._dlg.open) this._dlg.showModal(); } catch (e) { this._dlg.setAttribute('open', ''); }
+      this._dlgBody.scrollTop = 0;
+      try { (keyboard ? this._dlg.querySelector('.dlg-x') : this._dlg).focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    }
+
+    _closeSummary() {
+      this._summaryOpenState = false;
+      if (this._dlg && this._dlg.open) { try { this._dlg.close(); } catch (e) { this._dlg.removeAttribute('open'); } }
+    }
+
+    _renderSummary(shown, L) {
+      const c = this._config;
+      const names = tr(L, 'days');
+      const loc = L === 'fr' ? 'fr-FR' : 'en-US';
+      const dayLabel = (d) => names[d];
+      let longDate = '';
+      try {
+        const [y, m, d] = shown.ymd.split('-').map(Number);
+        longDate = new Intl.DateTimeFormat(loc, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d)));
+      } catch (e) { longDate = dayLabel(shown.day); }
+      const secs = this._layers().map((layer, li) => {
+        const kind = kindOf(layer.entity);
+        const col = this._color(layer, li);
+        const domain = layer.entity.split('.')[0];
+        const kindName = kind === 'schedule' ? tr(L, 'k_schedule') : kind === 'calendar' ? tr(L, 'k_calendar')
+          : (domain === 'sensor' ? tr(L, 'k_sensor') : tr(L, 'k_marker'));
+        const spec = this._spec(layer);
+        const sub = spec ? `${kindName} · ${tr(L, 'controls', { n: haEntityName(this._hass, spec.target) || spec.target })}` : kindName;
+        let body = '';
+        if (kind === 'schedule') {
+          const it = this._item(layer.entity);
+          if (!it) body = `<div class="sm-row sm-none">${esc(tr(L, 'not_found'))}</div>`;
+          else {
+            let week = 0;
+            body = DAY_KEYS.map((k, d) => {
+              const blocks = [].concat(it[k] || []).map((b) => ({ s: toMin(b.from), e: toMin(b.to), data: b.data }))
+                .filter((b) => b.s != null && b.e != null && b.e > b.s).sort((a, b) => a.s - b.s);
+              const tot = blocks.reduce((n, b) => n + b.e - b.s, 0);
+              week += tot;
+              const chips = blocks.map((b) => {
+                const v = this._val(b, spec);
+                return `<span class="sm-chip">${esc(hhmm(b.s))}–${esc(hhmm(b.e))}${v == null ? '' : `<em>${esc(fmtVal(L, v, spec))}</em>`}</span>`;
+              }).join('');
+              return `<div class="sm-day${d === shown.now.day ? ' today' : ''}" data-day="${d}"><span class="sm-dn">${esc(dayLabel(d))}</span>
+                <div class="sm-chips">${chips || `<span class="sm-none">${esc(tr(L, 'no_range'))}</span>`}</div><span class="sm-tot">${tot ? esc(dur(tot, L)) : ''}</span></div>`;
+            }).join('') + (week ? `<div class="sm-foot">${esc(tr(L, 'week_total', { t: dur(week, L) }))}</div>` : '');
+          }
+        } else if (kind === 'calendar') {
+          const ev = (this._cal[layer.entity] && this._cal[layer.entity].events) || [];
+          body = `<div class="sm-foot" style="margin:0 0 4px">${esc(tr(L, 'events_of', { d: longDate }))}</div>`
+            + (ev.length ? `<div class="sm-chips" style="padding:0 8px">${ev.map((x) => `<span class="sm-chip">${esc(hhmm(x.s))}–${esc(hhmm(x.e))}<em>${esc(x.title)}</em></span>`).join('')}</div>`
+              : `<div class="sm-row sm-none">${esc(tr(L, 'no_event'))}</div>`);
+        } else if (kind === 'marker') {
+          const st = this._hass.states[layer.entity];
+          const mk = this._markerTime(layer, shown);
+          let txt = '';
+          if (domain === 'sensor' || (domain === 'input_datetime' && st && st.attributes && st.attributes.has_date)) {
+            const d = st && new Date(String(st.state).replace(' ', 'T'));
+            if (d && !Number.isNaN(d.getTime())) {
+              try {
+                txt = new Intl.DateTimeFormat(loc, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: domain === 'sensor' ? this._tz() : 'UTC' })
+                  .format(domain === 'sensor' ? d : new Date(`${String(st.state).replace(' ', 'T')}Z`));
+              } catch (e) { txt = st.state; }
+            }
+          } else if (mk) txt = hhmm(mk.m);
+          body = txt ? `<div class="sm-row"><b>${esc(txt)}</b></div>` : `<div class="sm-row sm-none">${esc(tr(L, 'no_time'))}</div>`;
+        } else body = `<div class="sm-row sm-none">${esc(tr(L, 'unsupported'))}</div>`;
+        return `<section class="sm-sec" style="--c:${col}"><div class="sm-h"><ha-icon icon="${esc(this._icon(layer))}" style="color:${col}"></ha-icon><b>${esc(this._name(layer))}</b><span class="sm-kind">${esc(sub)}</span></div>${body}</section>`;
+      }).join('');
+      // Réglages de la carte
+      const sun = c.show_sun !== false ? this._sun(shown) : null;
+      const set = [
+        [tr(L, 's_snap'), `${this._snap()} ${tr(L, 'min')}`],
+        [tr(L, 's_orientation'), tr(L, this._rot() ? 'o_noon_top' : 'o_midnight_top')],
+        [tr(L, 's_style'), tr(L, `skin_${this._skin()}`)],
+        [tr(L, 's_palette'), tr(L, c.palette === 'theme' ? 'pal_theme' : 'pal_default')],
+        [tr(L, 's_theme'), tr(L, c.theme === 'dark' ? 'theme_dark' : c.theme === 'light' ? 'theme_light' : 'theme_auto')],
+        ...(sun ? [[tr(L, 's_sun'), tr(L, 'sun_line', { a: hhmm(sun.rise), b: hhmm(sun.set) })]] : []),
+        ...(this._hasKind('schedule') ? [[tr(L, 's_rights'), tr(L, this._canEdit() ? 'r_admin' : 'r_read')]] : []),
+      ];
+      const html = `${secs}<section class="sm-sec"><div class="sm-h"><ha-icon icon="mdi:cog-outline"></ha-icon><b>${esc(tr(L, 'settings'))}</b></div>
+        <dl class="sm-set">${set.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></section>`;
+      const title = `${esc(tr(L, 'summary'))}<small>${esc(c.name ? `${c.name} · ${longDate}` : longDate)}</small>`;
+      if (this._dlgTitle.innerHTML !== title) this._dlgTitle.innerHTML = title;
+      const x = this._dlg.querySelector('.dlg-x');
+      x.setAttribute('aria-label', tr(L, 'close'));
+      x.setAttribute('title', tr(L, 'close'));
+      if (this._sumHtml !== html) { this._sumHtml = html; this._dlgBody.innerHTML = html; }
     }
 
     _sun(shown) {
@@ -1349,7 +1583,7 @@
     .color-row input[type="text"] { flex: 1; min-width: 0; }
     .hint { font-size: 12px; color: var(--secondary-text-color); margin-top: 8px; line-height: 1.4; }
   `;
-  const DEFAULT_TRUE = ['show_sun', 'show_days', 'show_legend', 'haptics'];
+  const DEFAULT_TRUE = ['show_sun', 'show_days', 'show_legend', 'haptics', 'summary'];
   const SELECT_DEFAULTS = { theme: 'auto', knob_theme: 'metal', orientation: 'midnight_top', snap: '15', palette: 'default' };
   const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(l)}</option>`).join('');
   const toHex = (v) => {
@@ -1451,7 +1685,7 @@
               <div class="field"><label>${esc(t('palette'))}</label><select data-field="palette">${opts([['default', t('pal_default')], ['theme', t('pal_theme')]], c.palette === 'theme' ? 'theme' : 'default')}</select></div>
               <div class="field"><label>${esc(t('snap'))}</label><select data-field="snap">${opts(SNAPS.map((s) => [String(s), `${s} ${t('min')}`]), SNAPS.includes(Number(c.snap)) ? String(c.snap) : '15')}</select></div>
             </div>
-            <div class="switches">${sw('show_sun', t('show_sun'))}${sw('show_days', t('show_days'))}${sw('show_legend', t('show_legend'))}${sw('haptics', t('haptics'))}</div>
+            <div class="switches">${sw('show_sun', t('show_sun'))}${sw('show_days', t('show_days'))}${sw('show_legend', t('show_legend'))}${sw('haptics', t('haptics'))}${sw('summary', t('show_summary'))}</div>
           </div>
           <div class="section">
             <div class="section-title">${esc(t('sec_layers', { n: c.layers.length }))}</div>

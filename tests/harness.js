@@ -9,7 +9,7 @@ const mdi = require('@mdi/js');
 const CARD = path.resolve(process.env.CARD || path.join(__dirname, '..', 'dist', 'day-wheel-card.js'));
 
 const ICON_NAMES = ['trash-can-outline', 'close', 'calendar-clock', 'calendar', 'alarm', 'radiator', 'window-shutter',
-  'water', 'robot-vacuum', 'help-circle-outline', 'weather-sunset', 'bed', 'sprinkler', 'minus', 'plus', 'thermostat', 'lightbulb-group'];
+  'water', 'robot-vacuum', 'help-circle-outline', 'weather-sunset', 'bed', 'sprinkler', 'minus', 'plus', 'thermostat', 'lightbulb-group', 'cog-outline'];
 const camel = (n) => 'mdi' + n.split('-').map((s) => s[0].toUpperCase() + s.slice(1)).join('');
 const ICONS = Object.fromEntries(ICON_NAMES.map((n) => [camel(n), mdi[camel(n)] || mdi.mdiHelpCircleOutline]));
 

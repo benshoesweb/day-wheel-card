@@ -19,6 +19,7 @@ Roue des 24 heures pour les tableaux de bord Home Assistant : vos plannings, ré
   - **Calendrier** (`calendar`) : les événements du jour.
 - **Chauffage, volets, lumières** : un planning peut piloter un thermostat, un volet roulant ou une lumière (ou un groupe de lumières) ; chaque plage a sa température, sa position ou sa luminosité, réglée au doigt. Le [blueprint fourni](#piloter-le-chauffage-les-volets-et-les-lumières) l'applique à l'heure dite.
 - **Jours de la semaine** : consultez et modifiez le planning de n'importe quel jour.
+- **Résumé** par appui long sur le centre : toute la semaine des plannings avec leurs valeurs, les heures, les événements du jour et les réglages de la carte, dans une fenêtre aux couleurs du thème, adaptée au téléphone, à la tablette et au PC.
 - **Nuit et soleil** : la couronne des heures s'assombrit du coucher au lever du soleil.
 - **Aiguille** de l'heure actuelle et, au centre, ce qui est en cours et ce qui arrive (« → 19:00 » = jusqu'à 19:00).
 - **Heure du serveur** : le cadran suit le fuseau de Home Assistant, pas celui de la tablette.
@@ -40,6 +41,7 @@ Roue des 24 heures pour les tableaux de bord Home Assistant : vos plannings, ré
 | − / + au centre (plage choisie) | change sa température, sa position ou sa luminosité (planning avec `target`) ; aussi flèches haut / bas |
 | Glisser un repère d'heure | change l'heure du `input_datetime` ou du `time` |
 | Jours sous le cadran | affichent (et modifient) le planning de ce jour |
+| Appui long sur le centre | ouvre le **résumé** (au clavier : Entrée sur le centre) |
 | Légende | ouvre la fiche de l'entité |
 
 Les plages ne se chevauchent jamais et s'arrêtent à minuit, comme dans l'éditeur de Home Assistant. Les données personnalisées d'une plage (`data`) sont conservées. La modification est réservée aux **administrateurs** (règle de Home Assistant) ; les autres utilisateurs voient le cadran en lecture seule. Les plannings définis en YAML ne sont pas lisibles par les cartes : créez-les depuis **Paramètres › Appareils et services › Entrées › Planning**.
@@ -79,6 +81,18 @@ La carte ne fonctionne que lorsque le tableau de bord est affiché : pour que le
 - **Plusieurs lumières ensemble** : créez un groupe de lumières (**Paramètres › Appareils et services › Entrées › Créer une entrée › Groupe › Groupe de lumières**) et choisissez-le comme appareil. Le blueprint accepte aussi plusieurs appareils pour un même planning (par exemple tous les thermostats de l'étage).
 
 La valeur est rangée dans les données de la plage (`temperature`, `position` ou `brightness_pct`) : Home Assistant l'affiche en attribut du planning pendant la plage, et vos propres automatisations peuvent aussi s'en servir. Le blueprint demande Home Assistant 2024.10 ou plus.
+
+## Résumé
+
+![Résumé](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/resume.png)
+
+Un **appui long sur le centre** du cadran ouvre une fenêtre qui récapitule tout :
+
+- pour chaque planning, **les 7 jours** avec leurs plages, leurs valeurs (température, position, luminosité), la durée de chaque jour et le total de la semaine ; aujourd'hui est mis en avant, et l'appareil piloté est indiqué ;
+- l'heure des réveils et repères, la date de la prochaine alarme, les événements du jour des calendriers ;
+- les réglages de la carte (pas, orientation, style, couleurs, thème), le lever et le coucher du soleil, et si vous pouvez modifier les plannings.
+
+La fenêtre prend les couleurs du **thème Home Assistant** (ou du thème clair / sombre choisi pour la carte) et se met à jour en direct. S'il y a beaucoup d'informations, elle **défile**. Sur un **téléphone**, elle occupe tout l'écran, comme les fenêtres de Home Assistant ; sur une **tablette** ou un **PC**, elle s'affiche au centre. Pour la fermer : la **croix** en haut à droite, la touche Échap, ou un clic à côté. Option `summary: false` pour désactiver l'appui long.
 
 ## Installation
 
@@ -127,6 +141,7 @@ layers:
 | `show_days` | jours de la semaine (avec un planning ou un calendrier) | `true` |
 | `show_legend` | légende sous le cadran | `true` |
 | `haptics` | retour haptique au doigt | `true` |
+| `summary` | résumé par appui long sur le centre | `true` |
 | `knob_theme` | `metal`, `ha` (tout le cadran aux couleurs du thème), `glass`, `neumorph`, `brass`, `carbon`, `neon` | `metal` |
 | `palette` | couleurs des anneaux sans couleur choisie : `default` (palette de la carte) ou `theme` (couleurs du thème : principale, succès, avertissement, info, erreur, accent) | `default` |
 | `theme` | `auto`, `light`, `dark` | `auto` |
@@ -164,6 +179,7 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 
 - **1 to 6 rings** (`layers`): `schedule` (editable time ranges), `input_datetime` / `time` (draggable time marker), timestamp `sensor` (marker), `calendar` (today's events).
 - **Heating, covers, lights**: give a schedule ring a device to control (`target`, "Control" in the editor): a thermostat (`climate`), a cover or a light (light groups included). Each time range then has a temperature, a position or a brightness, set with **− / +** in the center (limits and step from the device, or `min`, `max`, `step`), written along the range. The value is stored in the range's data (`temperature`, `position`, `brightness_pct`). Since the card only runs while the dashboard is shown, the [`day_wheel_schedule.yaml`](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fbenshoesweb%2Fday-wheel-card%2Fblob%2Fmain%2Fblueprints%2Fday_wheel_schedule.yaml) blueprint applies the values on time: the range's value during a range, an "outside" temperature / position, turning off, or nothing outside the ranges; restored on restart. Group several lights with a light group helper.
+- **Summary** on a long press of the center (`summary`, on by default): every schedule's full week with values and daily / weekly totals, times, today's events and the card settings, in a window that follows the Home Assistant theme (or the card's light / dark theme), scrolls when long, goes full screen on phones and sits centered on tablets and computers; close it with the top-right cross, Escape or a click outside.
 - **Days of the week** to view and edit any day, **night shading** from sunset to sunrise, a **current-time hand**, and what's on / next in the center.
 - Uses the **Home Assistant server time zone**, live updates, 7 center styles, `noon_top` orientation, adjustable `snap` (minutes), haptics, light / dark.
 - **Follows the Home Assistant theme**: with `knob_theme: ha`, the whole dial (face, empty rings, ticks, day / night ring, center, hand) uses the active theme's colors, and `palette: theme` gives the rings the theme's colors (primary, success, warning, info, error, accent). Theme changes apply instantly; a ring's own `color` still wins.
@@ -176,7 +192,7 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 ```bash
 npm ci
 npx playwright install chromium
-npm test          # 144 vérifications dans Chrome : affichage, glisser, créer, supprimer, valeurs, droits, éditeur…
+npm test          # 179 vérifications dans Chrome : affichage, glisser, créer, supprimer, valeurs, résumé, droits, éditeur…
 ```
 
 Les tests tournent aussi sur GitHub à chaque modification (workflow **Tests**). Historique : [CHANGELOG.md](CHANGELOG.md).

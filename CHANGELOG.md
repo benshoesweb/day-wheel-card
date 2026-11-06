@@ -11,7 +11,8 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les
 - La valeur est rangée dans les **données de la plage** (`data` : `temperature`, `position` ou `brightness_pct`), que Home Assistant expose en attribut du planning pendant la plage. Les autres données de la plage sont conservées.
 - Bornes et pas d'après l'appareil (température mini / maxi et pas du thermostat, 0 – 100 % par 10 pour les volets, 10 – 100 % par 10 pour les lumières), modifiables avec `min`, `max` et `step`.
 - **Blueprint** [`day_wheel_schedule.yaml`](blueprints/day_wheel_schedule.yaml) qui applique ces valeurs à l'heure dite, même tableau de bord fermé : température de la plage (thermostat rallumé si besoin), position (ou ouverture / fermeture pour un volet sans position), luminosité ; hors des plages, température ou position « hors plages », extinction, ou rien. Une valeur changée pendant la plage en cours s'applique aussitôt ; tout est rétabli au redémarrage. Testé sur Home Assistant 2026.11 (thermostats, volets, groupe de lumières, redémarrage).
-- 42 vérifications automatiques de plus (144 au total).
+- **Résumé par appui long sur le centre** (option `summary`, activée par défaut, réglable dans l'éditeur) : une fenêtre récapitule la semaine entière de chaque planning (plages, valeurs, durée du jour, total de la semaine, appareil piloté), les heures des repères, la prochaine alarme, les événements du jour, les réglages de la carte, le soleil et les droits de modification. Elle suit le thème Home Assistant (ou le thème clair / sombre choisi), se met à jour en direct et défile s'il y a beaucoup d'informations. Elle est en plein écran sur téléphone et centrée sur tablette et PC ; on la ferme avec la croix en haut à droite, Échap ou un clic à côté. Au clavier : Entrée sur le centre.
+- 77 vérifications automatiques de plus (179 au total).
 
 #### English
 
@@ -20,7 +21,8 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les
 - The value is stored in the **range's data** (`data`: `temperature`, `position` or `brightness_pct`), which Home Assistant exposes as a schedule attribute during the range. The range's other data is kept.
 - Limits and step follow the device (thermostat min / max temperature and step, 0 – 100 % by 10 for covers, 10 – 100 % by 10 for lights), adjustable with `min`, `max` and `step`.
 - **Blueprint** [`day_wheel_schedule.yaml`](blueprints/day_wheel_schedule.yaml) that applies these values on time, even with the dashboard closed: the range's temperature (thermostat turned back on if needed), position (or open / close for a cover without position), brightness; outside the ranges, an "outside" temperature or position, turning off, or nothing. A value changed during the current range applies right away; everything is restored on restart. Tested on Home Assistant 2026.11 (thermostats, covers, light group, restart).
-- 42 more automated checks (144 in total).
+- **Summary on a long press of the center** (`summary` option, on by default, available in the editor): a window recaps each schedule's whole week (ranges, values, daily duration, weekly total, controlled device), marker times, the next alarm, today's events, the card settings, the sun and editing rights. It follows the Home Assistant theme (or the chosen light / dark theme), updates live and scrolls when there is a lot to show. It is full screen on phones and centered on tablets and computers; close it with the top-right cross, Escape or a click outside. With a keyboard: Enter on the center.
+- 77 more automated checks (179 in total).
 
 ## [1.2.1] — 2026-11-05
 
