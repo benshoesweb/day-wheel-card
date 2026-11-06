@@ -4,6 +4,22 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les
 
 *Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), following [semantic versioning](https://semver.org/). Each version is described in French, then in English.*
 
+## [1.4.1] — 2026-11-06
+
+### Corrigé
+- **Carré sombre autour du bouton central** à l'appui long (surtout sur iPhone, iPad et dans l'application Home Assistant) : c'était la surbrillance au toucher des navigateurs mobiles, apparue avec le résumé (le centre est devenu un bouton). Elle est désactivée sur toute la carte, résumé compris.
+- Plus de contour de focus autour du cadran à la fermeture du résumé.
+- Les anneaux de focus au clavier (centre, cadran, jours, boutons) sont désormais ronds sur tous les navigateurs, au lieu d'un contour parfois carré sur Safari ; ils n'apparaissent qu'au clavier.
+- 8 vérifications automatiques de plus (237 au total).
+
+#### English
+
+##### Fixed
+- **Dark square around the center button** on long press (mostly on iPhone, iPad and in the Home Assistant app): it was mobile browsers' tap highlight, which appeared with the summary (the center became a button). It is now turned off across the whole card, summary included.
+- No more focus outline around the dial when the summary closes.
+- Keyboard focus rings (center, dial, days, buttons) are now round in every browser, instead of a sometimes square outline on Safari; they only show with the keyboard.
+- 8 more automated checks (237 in total).
+
 ## [1.4.0] — 2026-11-06
 
 ### Ajouté
@@ -104,6 +120,7 @@ First public release.
 - Visual editor in French and English.
 - 78 automated checks in Chrome (GitHub Actions).
 
+[1.4.1]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.4.1
 [1.4.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.4.0
 [1.3.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.3.0
 [1.2.1]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.2.1

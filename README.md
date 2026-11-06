@@ -221,7 +221,7 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 ```bash
 npm ci
 npx playwright install chromium
-npm test          # 229 vérifications dans Chrome : affichage, glisser, créer, supprimer, valeurs, résumé, automatisations, droits, éditeur…
+npm test          # 237 vérifications dans Chrome : affichage, glisser, créer, supprimer, valeurs, résumé, automatisations, droits, éditeur…
 ```
 
 Les tests tournent aussi sur GitHub à chaque modification (workflow **Tests**). Historique : [CHANGELOG.md](CHANGELOG.md).

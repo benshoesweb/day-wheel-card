@@ -377,6 +377,8 @@
       padding: 12px 12px 14px;
       color: var(--dwc-text);
       container-type: inline-size;
+      /* Pas de carré gris au toucher (iPhone, iPad, appli Home Assistant) : chaque élément a son propre retour */
+      -webkit-tap-highlight-color: transparent;
     }
     .wrap.dark {
       --dwc-face: hsl(220 12% 13%);
@@ -418,7 +420,7 @@
     .dial { position: relative; width: 100%; max-width: 420px; margin: 0 auto; aspect-ratio: 1 / 1; touch-action: none; user-select: none; -webkit-user-select: none; }
     .dial > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
     .dial > svg:focus { outline: none; }
-    .dial > svg:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 4px; border-radius: 50%; }
+    .dial > svg:focus-visible { outline: none; border-radius: 50%; box-shadow: 0 0 0 2px var(--primary-color, #03a9f4); }
     .dial > svg text { font-family: inherit; }
     .face { fill: var(--dwc-face); stroke: var(--dwc-face-edge); stroke-width: 1; }
     .dayband { fill: none; stroke: var(--dwc-dayband); }
@@ -474,7 +476,7 @@
     .c-btns { display: flex; gap: 8px; margin-top: 6px; }
     .c-btn { all: unset; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
       background: rgb(127 127 127 / .18); color: inherit; }
-    .c-btn:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); }
+    .c-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--primary-color, #03a9f4); }
     .c-btn.danger { background: rgb(229 72 77 / .2); color: #e5484d; }
     .c-btn ha-icon { --mdc-icon-size: 18px; }
     .c-err { color: #e5484d; }
@@ -489,7 +491,7 @@
       font-size: 13px; font-weight: 500; color: var(--dwc-text); background: var(--dwc-track); }
     .day.sel { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); }
     .day.today::after { content: ''; position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
-    .day:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; }
+    .day:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--dwc-face), 0 0 0 4px var(--primary-color, #03a9f4); }
 
     .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; margin-top: 10px; font-size: 12px; color: var(--dwc-muted); }
     .lg { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
@@ -498,8 +500,9 @@
     .lg.on ha-icon { filter: drop-shadow(0 0 3px currentColor); }
     .lg:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; border-radius: 4px; }
     .center.can-sum { cursor: pointer; -webkit-touch-callout: none; }
-    .center:focus { outline: none; }
-    .center:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 3px; }
+    /* Focus du centre : anneau rond, au clavier seulement (jamais au doigt ni à la souris) */
+    .center:focus, .center:focus-visible { outline: none; }
+    .center:focus-visible { box-shadow: 0 0 0 3px var(--dwc-face), 0 0 0 5px var(--primary-color, #03a9f4), var(--dwc-c-shadow); }
 
     /* Résumé : fenêtre au premier plan (dialog), couleurs du thème HA ou du thème choisi */
     .dlg {
@@ -525,7 +528,7 @@
     .dlg-head h2 small { display: block; font-size: 13px; font-weight: 400; color: var(--dlg-muted); margin-top: 2px; }
     .dlg-x { all: unset; cursor: pointer; flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--dlg-fg); align-self: flex-start; }
     .dlg-x:hover { background: var(--dlg-soft); }
-    .dlg-x:focus-visible { outline: 2px solid var(--dlg-accent); }
+    .dlg-x:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--dlg-accent); }
     .dlg-x ha-icon { --mdc-icon-size: 24px; }
     .dlg-body { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 6px 22px 22px; flex: 1 1 auto; min-height: 0; }
     .sm-sec { padding: 14px 0; border-bottom: 1px solid var(--dlg-line); }
@@ -1009,7 +1012,7 @@
       });
       this._dlg.addEventListener('close', () => {
         this._summaryOpenState = false;
-        try { this._svg.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
+        try { this._svg.focus({ preventScroll: true, focusVisible: false }); } catch (err) { /* ignore */ }
       });
       // Les gestes dans la fenêtre ne concernent pas le cadran
       ['keydown', 'pointerdown'].forEach((ev) => this._dlg.addEventListener(ev, (e) => e.stopPropagation()));
