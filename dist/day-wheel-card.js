@@ -27,6 +27,9 @@
  *   show_days         true (défaut) : jours de la semaine (plannings et calendriers)
  *   show_legend       true (défaut) : légende des anneaux sous le cadran
  *   haptics           true (défaut) : retour haptique au doigt
+ *   create_automation true (défaut) : un planning avec « target » reçoit automatiquement son automatisation
+ *                     (blueprint day_wheel_schedule.yaml, installé par la carte) dès qu'on y règle une valeur ;
+ *                     false : seulement avec le bouton « Créer l'automatisation » (éditeur, résumé)
  *   summary           true (défaut) : appui long sur le centre = résumé (semaine des plannings, valeurs,
  *                     heures, événements, réglages) dans une fenêtre aux couleurs du thème
  *   knob_theme        metal (défaut) | ha (cadran, anneaux, jour / nuit et centre aux couleurs du thème HA)
@@ -61,6 +64,122 @@
     cover: { key: 'position', unit: '%', min: 0, max: 100, step: 10, def: 100, icon: 'mdi:window-shutter' },
     light: { key: 'brightness_pct', unit: '%', min: 10, max: 100, step: 10, def: 100, icon: 'mdi:lightbulb-group' },
   };
+  // Une automatisation par planning piloté : créée par la carte avec le blueprint fourni
+  const BP_PATH = 'benshoesweb/day_wheel_schedule.yaml';
+  const BP_URL = 'https://github.com/benshoesweb/day-wheel-card/blob/main/blueprints/day_wheel_schedule.yaml';
+  const autoId = (schedule) => `day_wheel_${String(schedule).split('.')[1] || 'planning'}`;
+  const isNotFound = (e) => !!e && (e.status_code === 404 || e.status === 404 || /not found|introuvable/i.test(String(e.error || e.message || (e.body && e.body.message) || '')));
+  const usesBlueprint = (cfg) => !!(cfg && cfg.use_blueprint && /day_wheel_schedule\.yaml$/.test(String(cfg.use_blueprint.path || '')));
+  const autoTargets = (cfg) => [].concat((cfg && cfg.use_blueprint && cfg.use_blueprint.input && cfg.use_blueprint.input.targets) || []);
+  const autoEntity = (hass, id) => Object.keys((hass && hass.states) || {}).find((e) => e.startsWith('automation.') && hass.states[e].attributes && hass.states[e].attributes.id === id) || null;
+  // Automatisation qui applique ce planning : la nôtre (identifiant fixe), sinon une automatisation
+  // créée à la main avec le blueprint et qui utilise ce planning
+  const findAutomation = async (hass, schedule) => {
+    const id = autoId(schedule);
+    try {
+      const config = await hass.callApi('GET', `config/automation/config/${id}`);
+      if (config) return { id, config, own: true };
+    } catch (e) { if (!isNotFound(e)) throw e; }
+    let rel = null;
+    try { rel = await hass.callWS({ type: 'search/related', item_type: 'entity', item_id: schedule }); } catch (e) { rel = null; }
+    for (const eid of [].concat((rel && rel.automation) || [])) {
+      const st = hass.states[eid];
+      const aid = st && st.attributes && st.attributes.id;
+      if (!aid) continue;
+      try {
+        const config = await hass.callApi('GET', `config/automation/config/${aid}`);
+        if (usesBlueprint(config)) return { id: aid, config, own: aid === id };
+      } catch (e) { /* automatisation YAML : ignorée */ }
+    }
+    return null;
+  };
+  // Le blueprint est installé s'il manque (sans écraser celui déjà importé)
+  const ensureBlueprint = async (hass) => {
+    const list = (await hass.callWS({ type: 'blueprint/list', domain: 'automation' })) || {};
+    const found = Object.entries(list).find(([p, v]) => p === BP_PATH || (v && v.metadata && v.metadata.source_url === BP_URL));
+    if (found && found[1] && found[1].metadata && !found[1].error) return found[0];
+    await hass.callWS({ type: 'blueprint/save', domain: 'automation', path: BP_PATH, yaml: BLUEPRINT_YAML, source_url: BP_URL, allow_override: !!found });
+    return BP_PATH;
+  };
+  const saveAutomation = async (hass, { schedule, target, alias, description, base }) => {
+    const id = base ? base.id : autoId(schedule);
+    const path = base ? base.config.use_blueprint.path : await ensureBlueprint(hass);
+    const config = base
+      ? { ...base.config, use_blueprint: { ...base.config.use_blueprint, input: { ...base.config.use_blueprint.input, targets: [target] } } }
+      : { alias, description, use_blueprint: { path, input: { schedule_entity: schedule, targets: [target] } } };
+    delete config.id;
+    await hass.callApi('POST', `config/automation/config/${id}`, config);
+    return id;
+  };
+  // État de l'automatisation d'un anneau (planning + appareil piloté), pour la carte et l'éditeur
+  const checkAuto = async (getHass, layer) => {
+    const hass = getHass();
+    const id = autoId(layer.entity);
+    if (!(hass.user && hass.user.is_admin)) {
+      // Sans droits d'administration : seulement ce que montrent les états
+      const entity = autoEntity(hass, id);
+      return entity ? { status: 'ok', id, own: true, entity } : { status: 'unknown' };
+    }
+    const f = await findAutomation(hass, layer.entity);
+    if (!f) return { status: 'missing' };
+    const entity = autoEntity(getHass(), f.id);
+    // Enregistrée mais sans entité : Home Assistant ne la charge pas (automations.yaml non inclus)
+    return { status: entity ? 'ok' : 'notloaded', id: f.id, own: f.own, base: f, targets: autoTargets(f.config), alias: f.config.alias || '', entity };
+  };
+  const createAuto = async (getHass, layer, L, base) => {
+    const hass = getHass();
+    const n = { s: layer.name || haEntityName(hass, layer.entity) || layer.entity, t: haEntityName(hass, layer.target) || layer.target };
+    const alias = tr(L, 'a_name', n);
+    const id = await saveAutomation(hass, { schedule: layer.entity, target: layer.target, alias, description: tr(L, 'a_desc', { s: n.s }), base });
+    // Home Assistant recharge les automatisations : on attend l'entité (sinon automations.yaml n'est pas inclus)
+    for (let k = 0; k < 30; k += 1) {
+      const entity = autoEntity(getHass(), id);
+      if (entity) {
+        // Lancée une fois tout de suite : la valeur de la plage en cours est appliquée sans attendre le changement suivant
+        try { await getHass().callService('automation', 'trigger', { entity_id: entity, skip_condition: true }); } catch (e) { /* elle s'appliquera au prochain changement */ }
+        return { status: 'ok', id, own: true, entity, alias: base ? base.config.alias : alias, targets: [layer.target], created: !base };
+      }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    return { status: 'notloaded', id, alias };
+  };
+  // Ligne d'état affichée dans le résumé et l'éditeur
+  const autoHtml = (hass, layer, info, L, canEdit) => {
+    if (!info || info.status === 'unknown') return '';
+    const btn = (act, label, li) => `<button class="a-btn" data-act="${act}" data-li="${li}">${esc(label)}</button>`;
+    const li = info.li;
+    let txt = '';
+    let btns = '';
+    if (info.status === 'checking') txt = tr(L, 'a_checking');
+    else if (info.status === 'creating') txt = tr(L, 'a_creating');
+    else if (info.status === 'missing') { txt = tr(L, 'a_missing'); if (canEdit) btns = btn('auto-create', tr(L, 'a_create'), li); }
+    else if (info.status === 'error') { txt = `${tr(L, 'a_error')}${info.msg ? ` : ${info.msg}` : ''}`; if (canEdit) btns = btn('auto-create', tr(L, 'a_create'), li); }
+    else if (info.status === 'notloaded') txt = tr(L, 'a_not_loaded');
+    else {
+      const st = info.entity && hass.states[info.entity];
+      const alias = info.alias || (st && st.attributes && st.attributes.friendly_name) || info.id;
+      txt = `${alias} · ${tr(L, st && st.state === 'off' ? 'a_off' : 'a_ok')}`;
+      const tname = haEntityName(hass, layer.target) || layer.target;
+      if (info.targets && !info.targets.includes(layer.target)) {
+        txt += ` · ${tr(L, 'a_other', { n: info.targets.map((x) => haEntityName(hass, x) || x).join(', ') || '—', t: tname })}`;
+        if (canEdit) btns += btn('auto-update', tr(L, 'a_update', { t: tname }), li);
+      }
+      if (canEdit) btns += btn('auto-open', tr(L, 'a_open'), li);
+    }
+    return `<div class="a-line${info.status === 'ok' ? ' ok' : ''}${['missing', 'error', 'notloaded'].includes(info.status) ? ' warn' : ''}"><ha-icon icon="mdi:robot-outline"></ha-icon><span><b>${esc(tr(L, 'automation'))}</b> : ${esc(txt)}</span>${btns ? `<span class="a-btns">${btns}</span>` : ''}</div>`;
+  };
+  const AUTO_STYLES = `
+    .a-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; font-size: 13px; margin-top: 8px; padding: 6px 8px; border-radius: 8px;
+      background: color-mix(in srgb, currentColor 6%, transparent); }
+    .a-line ha-icon { --mdc-icon-size: 18px; flex: none; opacity: .8; }
+    .a-line > span:first-of-type { flex: 1 1 12em; min-width: 0; }
+    .a-line.ok ha-icon { color: var(--success-color, #43a047); opacity: 1; }
+    .a-line.warn ha-icon { color: var(--warning-color, #ffa600); opacity: 1; }
+    .a-btns { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+    .a-btn { all: unset; cursor: pointer; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 500;
+      background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); }
+    .a-btn:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; }
+  `;
   const LONG_PRESS_MS = 550;
   const VALUE_SAVE_MS = 600;
   const DAY = 1440;
@@ -149,6 +268,12 @@
       s_style: 'Style du centre', s_palette: 'Couleurs des anneaux', s_theme: 'Thème', s_sun: 'Soleil', s_rights: 'Modification',
       r_admin: 'autorisée (administrateur)', r_read: 'lecture seule (réservée aux administrateurs)',
       sun_line: 'lever {a} · coucher {b}', week_total: '{t} sur la semaine',
+      automation: 'Automatisation', a_name: 'Day Wheel · {s} → {t}', a_desc: 'Créée par Day Wheel Card : applique aux appareils les valeurs des plages du planning {s}. Modifiable ici (valeurs hors plages, appareils…).',
+      a_ok: 'active', a_off: 'désactivée', a_missing: 'aucune : les valeurs ne s\'appliquent pas toutes seules', a_checking: 'vérification…',
+      a_create: 'Créer l\'automatisation', a_creating: 'Création…', a_open: 'Ouvrir', a_update: 'Piloter {t}',
+      a_other: 'pilote {n}, pas {t}', a_created: 'Automatisation créée : {n}', a_error: 'Automatisation non créée',
+      a_not_loaded: 'Automatisation enregistrée mais pas chargée : ajoutez « automation: !include automations.yaml » à configuration.yaml',
+      create_automation: 'Créer l\'automatisation du planning dès qu\'une valeur est réglée',
     },
     en: {
       title: 'My day', today: 'Today', tomorrow: 'Tomorrow',
@@ -185,6 +310,12 @@
       s_style: 'Center style', s_palette: 'Ring colors', s_theme: 'Theme', s_sun: 'Sun', s_rights: 'Editing',
       r_admin: 'allowed (administrator)', r_read: 'read only (administrators only)',
       sun_line: 'sunrise {a} · sunset {b}', week_total: '{t} over the week',
+      automation: 'Automation', a_name: 'Day Wheel · {s} → {t}', a_desc: 'Created by Day Wheel Card: applies the values of the {s} schedule\'s time ranges to the devices. Editable here (outside values, devices…).',
+      a_ok: 'active', a_off: 'turned off', a_missing: 'none: values are not applied on their own', a_checking: 'checking…',
+      a_create: 'Create the automation', a_creating: 'Creating…', a_open: 'Open', a_update: 'Control {t}',
+      a_other: 'controls {n}, not {t}', a_created: 'Automation created: {n}', a_error: 'Automation not created',
+      a_not_loaded: 'Automation saved but not loaded: add "automation: !include automations.yaml" to configuration.yaml',
+      create_automation: 'Create the schedule\'s automation as soon as a value is set',
     },
   };
   const langOf = (hass) => {
@@ -414,7 +545,7 @@
       @keyframes dwc-pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
     }
     @media (prefers-reduced-motion: reduce) { .arc { transition: none; } }
-  `;
+  ` + AUTO_STYLES;
 
   // Angle (degrés, 0 = droite, sens horaire) d'une minute de la journée
   const angleOf = (m, rot) => (m / DAY) * 360 - 90 + rot;
@@ -487,6 +618,10 @@
       this._drag = null;
       this._ids = {};
       this._cal = {};
+      this._autos = {};
+      this._autoTried = {};
+      this._autoProm = {};
+      this._autoLock = {};
       this._build();
       if (this._hass) this.hass = this._hass;
     }
@@ -832,6 +967,8 @@
       this._dlg.addEventListener('click', (e) => {
         // Croix, ou clic sur le fond (hors de la fenêtre)
         if (e.target.closest('[data-act="close-summary"]')) { this._closeSummary(); return; }
+        const ab = e.target.closest('[data-act^="auto-"]');
+        if (ab) { this._autoAction(ab.getAttribute('data-act'), Number(ab.getAttribute('data-li'))); return; }
         if (e.target === this._dlg && Date.now() - this._dlgOpenedAt > 400) {
           const r = this._dlg.getBoundingClientRect();
           if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) this._closeSummary();
@@ -1021,6 +1158,7 @@
       if (!this._dlg || !this._summaryOn()) return;
       this._summaryOpenState = true;
       this._sumHtml = null;
+      this._layers().forEach((l, li) => { if (this._spec(l)) this._checkAuto(li, true); });
       this._renderSummary(this._shown(), langOf(this._hass));
       this._dlgOpenedAt = Date.now();
       try { if (!this._dlg.open) this._dlg.showModal(); } catch (e) { this._dlg.setAttribute('open', ''); }
@@ -1031,6 +1169,94 @@
     _closeSummary() {
       this._summaryOpenState = false;
       if (this._dlg && this._dlg.open) { try { this._dlg.close(); } catch (e) { this._dlg.removeAttribute('open'); } }
+    }
+
+    // ---------- Automatisation du planning (une par planning piloté) ----------
+    _autoKey(layer) { return `${layer.entity}|${layer.target}`; }
+
+    _autoInfo(li) {
+      const layer = this._layers()[li];
+      const info = this._autos && this._autos[this._autoKey(layer)];
+      return info ? { ...info, li } : null;
+    }
+
+    _setAuto(layer, info) {
+      this._autos = this._autos || {};
+      this._autos[this._autoKey(layer)] = info;
+      if (this._summaryOpenState) this._render();
+    }
+
+    async _checkAuto(li, force) {
+      const layer = this._layers()[li];
+      if (!this._spec(layer) || !this._hass) return null;
+      const key = this._autoKey(layer);
+      this._autoProm = this._autoProm || {};
+      if (this._autoProm[key]) return this._autoProm[key];   // vérification déjà en cours
+      const cur = this._autos && this._autos[key];
+      if (cur && !force && cur.status !== 'error') return cur;
+      this._setAuto(layer, { status: 'checking' });
+      const run = (async () => {
+        let info;
+        try { info = await checkAuto(() => this._hass, layer); } catch (e) { info = { status: 'error', msg: (e && (e.message || e.error)) || '' }; }
+        delete this._autoProm[key];
+        this._setAuto(layer, info);
+        return info;
+      })();
+      this._autoProm[key] = run;
+      return run;
+    }
+
+    // Après une valeur enregistrée : automatisation créée si elle manque (une fois)
+    async _autoEnsure(li) {
+      if (!this._canEdit()) return;
+      const layer = this._layers()[li];
+      const key = this._autoKey(layer);
+      this._autoTried = this._autoTried || {};
+      if (this._autoTried[key]) return;
+      this._autoTried[key] = true;
+      const info = await this._checkAuto(li, false);
+      if (info && info.status === 'missing') await this._autoAction('auto-create', li);
+    }
+
+    // Une action à la fois par planning : deux demandes simultanées ne créent jamais deux automatisations
+    _autoAction(act, li) {
+      const layer = this._layers()[li];
+      if (!layer || !this._spec(layer)) return Promise.resolve();
+      if (act === 'auto-open') return this._autoDo(act, li);   // navigation immédiate
+      const key = this._autoKey(layer);
+      this._autoLock = this._autoLock || {};
+      const run = (this._autoLock[key] || Promise.resolve()).then(() => this._autoDo(act, li));
+      this._autoLock[key] = run.catch(() => {});
+      return run;
+    }
+
+    async _autoDo(act, li) {
+      const layer = this._layers()[li];
+      if (!layer || !this._spec(layer)) return;
+      const L = langOf(this._hass);
+      const info = this._autoInfo(li) || {};
+      if (act === 'auto-open') {
+        if (!info.id) return;
+        this._closeSummary();
+        history.pushState(null, '', `/config/automation/edit/${encodeURIComponent(info.id)}`);
+        window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } }));
+        return;
+      }
+      if (!this._canEdit()) return;
+      if (act === 'auto-update' && !(info.base && info.own)) return;
+      this._setAuto(layer, { status: 'creating' });
+      try {
+        // Jamais de doublon : on revérifie juste avant d'écrire
+        const again = act === 'auto-create' ? await findAutomation(this._hass, layer.entity) : null;
+        const res = again ? { ...(await checkAuto(() => this._hass, layer)), created: false }
+          : await createAuto(() => this._hass, layer, L, act === 'auto-update' ? info.base : null);
+        this._setAuto(layer, res.status === 'ok' && act === 'auto-update' ? await checkAuto(() => this._hass, layer) : res);
+        if (res.created) this._flash(tr(L, 'a_created', { n: res.alias }));
+        else if (res.status === 'notloaded') this._flash(tr(L, 'a_not_loaded'), true);
+      } catch (e) {
+        this._setAuto(layer, { status: 'error', msg: (e && (e.message || e.error)) || '' });
+        this._flash(tr(L, 'a_error'), true);
+      }
     }
 
     _renderSummary(shown, L) {
@@ -1070,6 +1296,7 @@
                 <div class="sm-chips">${chips || `<span class="sm-none">${esc(tr(L, 'no_range'))}</span>`}</div><span class="sm-tot">${tot ? esc(dur(tot, L)) : ''}</span></div>`;
             }).join('') + (week ? `<div class="sm-foot">${esc(tr(L, 'week_total', { t: dur(week, L) }))}</div>` : '');
           }
+          if (spec) body += autoHtml(this._hass, layer, this._autoInfo(li), L, this._canEdit());
         } else if (kind === 'calendar') {
           const ev = (this._cal[layer.entity] && this._cal[layer.entity].events) || [];
           body = `<div class="sm-foot" style="margin:0 0 4px">${esc(tr(L, 'events_of', { d: longDate }))}</div>`
@@ -1511,6 +1738,7 @@
         const res = await this._hass.callWS(msg);
         if (res && res.id) this._items.set(res.id, res);
         this._status = null;
+        if (this._spec(layer) && this._config.create_automation !== false) this._autoEnsure(li);
       } catch (err) {
         this._items.set(before.id, before);
         this._status = { text: `${this._t('error')}${err && err.message ? ` : ${err.message}` : ''}`, error: true };
@@ -1582,8 +1810,10 @@
     .color-row input[type="color"] { width: 36px; height: 34px; padding: 0; border: none; background: none; }
     .color-row input[type="text"] { flex: 1; min-width: 0; }
     .hint { font-size: 12px; color: var(--secondary-text-color); margin-top: 8px; line-height: 1.4; }
-  `;
-  const DEFAULT_TRUE = ['show_sun', 'show_days', 'show_legend', 'haptics', 'summary'];
+    .auto:empty { display: none; }
+    .auto .a-line { color: var(--primary-text-color); }
+  ` + AUTO_STYLES;
+  const DEFAULT_TRUE = ['show_sun', 'show_days', 'show_legend', 'haptics', 'summary', 'create_automation'];
   const SELECT_DEFAULTS = { theme: 'auto', knob_theme: 'metal', orientation: 'midnight_top', snap: '15', palette: 'default' };
   const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(l)}</option>`).join('');
   const toHex = (v) => {
@@ -1620,6 +1850,7 @@
       if (!this._config) return;
       if (relang || !this.shadowRoot.querySelector('.ed')) { this._render(); return; }
       this.shadowRoot.querySelectorAll('ha-entity-picker, ha-icon-picker').forEach((el) => { el.hass = hass; });
+      this._config.layers.forEach((_, i) => this._autoPaint(i));
     }
 
     _signature() { return JSON.stringify([langOf(this._hass), this._config.layers.map((l) => kindOf(l.entity)), this._config.palette === 'theme']); }
@@ -1671,6 +1902,7 @@
             <div class="field"><ha-icon-picker data-lkey="icon"></ha-icon-picker></div>
             ${kindOf(l.entity) === 'schedule' ? '<div class="field"><ha-entity-picker data-lkey="target"></ha-entity-picker></div>' : ''}
           </div>
+          ${kindOf(l.entity) === 'schedule' ? `<div class="auto" data-auto="${i}"></div>` : ''}
         </div>`).join('');
       this.shadowRoot.innerHTML = `
         <style>${EDITOR_STYLES}</style>
@@ -1685,7 +1917,7 @@
               <div class="field"><label>${esc(t('palette'))}</label><select data-field="palette">${opts([['default', t('pal_default')], ['theme', t('pal_theme')]], c.palette === 'theme' ? 'theme' : 'default')}</select></div>
               <div class="field"><label>${esc(t('snap'))}</label><select data-field="snap">${opts(SNAPS.map((s) => [String(s), `${s} ${t('min')}`]), SNAPS.includes(Number(c.snap)) ? String(c.snap) : '15')}</select></div>
             </div>
-            <div class="switches">${sw('show_sun', t('show_sun'))}${sw('show_days', t('show_days'))}${sw('show_legend', t('show_legend'))}${sw('haptics', t('haptics'))}${sw('summary', t('show_summary'))}</div>
+            <div class="switches">${sw('show_sun', t('show_sun'))}${sw('show_days', t('show_days'))}${sw('show_legend', t('show_legend'))}${sw('haptics', t('haptics'))}${sw('summary', t('show_summary'))}${sw('create_automation', t('create_automation'))}</div>
           </div>
           <div class="section">
             <div class="section-title">${esc(t('sec_layers', { n: c.layers.length }))}</div>
@@ -1697,6 +1929,59 @@
         </div>`;
       this._bind();
       this._syncValues();
+      this._config.layers.forEach((_, i) => this._autoRefresh(i));
+    }
+
+    // ---------- Automatisation de chaque planning piloté ----------
+    _autoTarget(i) {
+      const l = this._config.layers[i];
+      return l && kindOf(l.entity) === 'schedule' && typeof l.target === 'string' && TARGETS[l.target.split('.')[0]] ? l : null;
+    }
+
+    _autoPaint(i) {
+      const box = this.shadowRoot.querySelector(`[data-auto="${i}"]`);
+      if (!box) return;
+      const l = this._autoTarget(i);
+      const info = l && this._autos && this._autos[`${l.entity}|${l.target}`];
+      const html = l && info && this._hass ? autoHtml(this._hass, l, { ...info, li: i }, langOf(this._hass), true) : '';
+      if (box.innerHTML !== html) box.innerHTML = html;
+    }
+
+    async _autoRefresh(i, force) {
+      const l = this._autoTarget(i);
+      if (!l || !this._hass || !this._hass.user || !this._hass.user.is_admin || typeof this._hass.callApi !== 'function') { this._autoPaint(i); return; }
+      const key = `${l.entity}|${l.target}`;
+      this._autos = this._autos || {};
+      if (this._autos[key] && !force && !['error'].includes(this._autos[key].status)) { this._autoPaint(i); return; }
+      this._autos[key] = { status: 'checking' };
+      this._autoPaint(i);
+      let info;
+      try { info = await checkAuto(() => this._hass, l); } catch (e) { info = { status: 'error', msg: (e && (e.message || e.error)) || '' }; }
+      this._autos[key] = info;
+      this._config.layers.forEach((_, k) => this._autoPaint(k));
+    }
+
+    async _autoClick(act, i) {
+      const l = this._autoTarget(i);
+      if (!l) return;
+      const key = `${l.entity}|${l.target}`;
+      const info = (this._autos && this._autos[key]) || {};
+      if (act === 'auto-open') {
+        // Nouvel onglet : la configuration de la carte en cours d'édition n'est pas perdue
+        if (info.id) window.open(`/config/automation/edit/${encodeURIComponent(info.id)}`, '_blank', 'noopener');
+        return;
+      }
+      if (act === 'auto-update' && !(info.base && info.own)) return;
+      this._autos[key] = { status: 'creating' };
+      this._autoPaint(i);
+      try {
+        const again = act === 'auto-create' ? await findAutomation(this._hass, l.entity) : null;
+        if (!again) await createAuto(() => this._hass, l, langOf(this._hass), act === 'auto-update' ? info.base : null);
+        await this._autoRefresh(i, true);
+      } catch (e) {
+        this._autos[key] = { status: 'error', msg: (e && (e.message || e.error)) || '' };
+        this._autoPaint(i);
+      }
     }
 
     _bind() {
@@ -1739,6 +2024,7 @@
             const patch = key === 'entity' && kindOf(v) !== 'schedule' ? { entity: v, target: undefined } : { [key]: v };
             this._setLayer(i, patch);
             if (this._signature() !== this._sig) this._render();
+            else if (key === 'target' || key === 'entity') this._autoRefresh(i);
           });
         });
         box.querySelectorAll('[data-lfield]').forEach((inp) => {
@@ -1754,6 +2040,11 @@
           };
           inp.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(commit, 250); });
           inp.addEventListener('change', commit);
+        });
+        const autoBox = box.querySelector('[data-auto]');
+        if (autoBox) autoBox.addEventListener('click', (ev) => {
+          const b = ev.target.closest('[data-act^="auto-"]');
+          if (b) this._autoClick(b.getAttribute('data-act'), i);
         });
         const swatch = box.querySelector('[data-swatch]');
         swatch.addEventListener('change', () => {
@@ -1814,6 +2105,270 @@
       });
     }
   }
+
+  // Blueprint installé par la carte (copie de blueprints/day_wheel_schedule.yaml : node scripts/sync-blueprint.js)
+  // <blueprint>
+  const BLUEPRINT_YAML = `blueprint:
+  name: Day Wheel – planning du chauffage, des volets et des lumières
+  author: benshoesweb
+  description: >-
+    Applique aux appareils les valeurs réglées sur les plages d'un planning dans Day Wheel Card
+    (option « Piloter ») : la température des thermostats, la position des volets roulants,
+    la luminosité des lumières. Au début de chaque plage, la valeur de la plage est envoyée ;
+    hors des plages, la valeur « hors plages » (ou l'extinction) est appliquée. Une valeur modifiée
+    pendant une plage en cours est appliquée aussitôt, et tout est rétabli au redémarrage de
+    Home Assistant. Pour piloter plusieurs lumières ensemble, créez un groupe de lumières
+    (Paramètres › Appareils et services › Entrées › Groupe).
+
+
+    Applies the values set on a schedule's time ranges in Day Wheel Card ("Control" option)
+    to your devices: thermostat temperature, cover position, light brightness. At the start of
+    each range its value is sent; outside the ranges, the "outside" value (or turning off)
+    applies. A value changed during the current range applies right away, and everything is
+    restored when Home Assistant restarts. To control several lights together, create a light
+    group (Settings › Devices & services › Helpers › Group).
+  domain: automation
+  source_url: https://github.com/benshoesweb/day-wheel-card/blob/main/blueprints/day_wheel_schedule.yaml
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    schedule_entity:
+      name: Planning / Schedule
+      description: >-
+        Le planning réglé dans la carte (anneau avec « Piloter »).
+        The schedule set in the card (ring with "Control").
+      selector:
+        entity:
+          filter:
+            - domain: schedule
+    targets:
+      name: Appareils pilotés / Controlled devices
+      description: >-
+        Thermostats, volets roulants ou lumières (groupes de lumières compris).
+        Thermostats, covers or lights (light groups included).
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain:
+                - climate
+                - cover
+                - light
+    climate_section:
+      name: Thermostats
+      icon: mdi:thermostat
+      input:
+        temperature_default:
+          name: Température d'une plage sans valeur / Temperature of a range without a value
+          default: 20
+          selector:
+            number:
+              min: 5
+              max: 35
+              step: 0.5
+              unit_of_measurement: "°"
+              mode: box
+        climate_outside:
+          name: Hors des plages / Outside the ranges
+          default: temperature
+          selector:
+            select:
+              options:
+                - label: Température hors plages / Outside temperature
+                  value: temperature
+                - label: Éteindre le thermostat / Turn the thermostat off
+                  value: "off"
+                - label: Ne rien faire / Do nothing
+                  value: nothing
+        temperature_outside:
+          name: Température hors plages / Outside temperature
+          default: 17
+          selector:
+            number:
+              min: 5
+              max: 35
+              step: 0.5
+              unit_of_measurement: "°"
+              mode: box
+    cover_section:
+      name: Volets / Covers
+      icon: mdi:window-shutter
+      input:
+        position_default:
+          name: Position d'une plage sans valeur / Position of a range without a value
+          description: 0 = fermé, 100 = ouvert. 0 = closed, 100 = open.
+          default: 100
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 5
+              unit_of_measurement: "%"
+        cover_outside:
+          name: Hors des plages / Outside the ranges
+          default: position
+          selector:
+            select:
+              options:
+                - label: Position hors plages / Outside position
+                  value: position
+                - label: Ne rien faire / Do nothing
+                  value: nothing
+        position_outside:
+          name: Position hors plages / Outside position
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 5
+              unit_of_measurement: "%"
+    light_section:
+      name: Lumières / Lights
+      icon: mdi:lightbulb-group
+      input:
+        brightness_default:
+          name: Luminosité d'une plage sans valeur / Brightness of a range without a value
+          default: 100
+          selector:
+            number:
+              min: 1
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+        light_outside:
+          name: Hors des plages / Outside the ranges
+          default: "off"
+          selector:
+            select:
+              options:
+                - label: Éteindre / Turn off
+                  value: "off"
+                - label: Ne rien faire / Do nothing
+                  value: nothing
+
+mode: restart
+
+triggers:
+  # Début ou fin d'une plage, valeur modifiée dans la carte (attribut du planning)
+  - trigger: state
+    entity_id: !input schedule_entity
+  - trigger: homeassistant
+    event: start
+
+variables:
+  schedule_entity: !input schedule_entity
+  targets: !input targets
+  temperature_default: !input temperature_default
+  climate_outside: !input climate_outside
+  temperature_outside: !input temperature_outside
+  position_default: !input position_default
+  cover_outside: !input cover_outside
+  position_outside: !input position_outside
+  brightness_default: !input brightness_default
+  light_outside: !input light_outside
+
+conditions:
+  # Planning disponible, et seulement un vrai changement : début / fin de plage ou valeur modifiée
+  # (pas la simple mise à jour de « next_event » quand un autre jour est modifié)
+  - condition: template
+    value_template: >-
+      {% set ok = states(schedule_entity) in ['on', 'off'] %}
+      {% if not ok %}false
+      {% elif trigger.platform != 'state' or trigger.from_state is none %}true
+      {% elif trigger.from_state.state != trigger.to_state.state %}true
+      {% else %}
+        {% set ns = namespace(changed=false) %}
+        {% for k in ['temperature', 'position', 'brightness_pct'] %}
+          {% if trigger.from_state.attributes.get(k) != trigger.to_state.attributes.get(k) %}
+            {% set ns.changed = true %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.changed }}
+      {% endif %}
+
+actions:
+  - variables:
+      active: "{{ is_state(schedule_entity, 'on') }}"
+      t_value: "{{ state_attr(schedule_entity, 'temperature') }}"
+      p_value: "{{ state_attr(schedule_entity, 'position') }}"
+      b_value: "{{ state_attr(schedule_entity, 'brightness_pct') }}"
+      temperature: >-
+        {{ (t_value | float) if (t_value is not none and t_value | is_number) else (temperature_default | float) }}
+      position: >-
+        {% if active %}{{ (p_value | int) if (p_value is not none and p_value | is_number) else (position_default | int) }}
+        {% else %}{{ position_outside | int }}{% endif %}
+      brightness: >-
+        {{ (b_value | int) if (b_value is not none and b_value | is_number) else (brightness_default | int) }}
+      target_list: "{{ [targets] if targets is string else targets }}"
+  - repeat:
+      for_each: "{{ target_list }}"
+      sequence:
+        - variables:
+            domain: "{{ repeat.item.split('.')[0] }}"
+        - choose:
+            # Thermostat pendant une plage : allumé si besoin, puis température de la plage
+            - conditions: "{{ domain == 'climate' and active }}"
+              sequence:
+                - if: "{{ is_state(repeat.item, 'off') }}"
+                  then:
+                    - action: climate.turn_on
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      continue_on_error: true
+                - action: climate.set_temperature
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    temperature: "{{ temperature }}"
+                  continue_on_error: true
+            - conditions: "{{ domain == 'climate' and climate_outside == 'temperature' }}"
+              sequence:
+                - action: climate.set_temperature
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    temperature: "{{ temperature_outside }}"
+                  continue_on_error: true
+            - conditions: "{{ domain == 'climate' and climate_outside == 'off' }}"
+              sequence:
+                - action: climate.turn_off
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  continue_on_error: true
+            # Volet : position (ou simplement ouvert / fermé s'il ne règle pas de position)
+            - conditions: "{{ domain == 'cover' and (active or cover_outside == 'position') }}"
+              sequence:
+                - if: "{{ (state_attr(repeat.item, 'supported_features') | int(0)) | bitwise_and(4) > 0 }}"
+                  then:
+                    - action: cover.set_cover_position
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      data:
+                        position: "{{ position }}"
+                      continue_on_error: true
+                  else:
+                    - action: "{{ 'cover.open_cover' if position | int > 0 else 'cover.close_cover' }}"
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      continue_on_error: true
+            # Lumières : luminosité de la plage, éteintes hors plages
+            - conditions: "{{ domain == 'light' and active }}"
+              sequence:
+                - action: light.turn_on
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    brightness_pct: "{{ brightness }}"
+                  continue_on_error: true
+            - conditions: "{{ domain == 'light' and light_outside == 'off' }}"
+              sequence:
+                - action: light.turn_off
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  continue_on_error: true
+`;
+  // </blueprint>
 
   if (!customElements.get(EDITOR_TAG)) customElements.define(EDITOR_TAG, DayWheelCardEditor);
   if (!customElements.get(TAG)) customElements.define(TAG, DayWheelCard);

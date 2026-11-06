@@ -9,7 +9,7 @@ const mdi = require('@mdi/js');
 const CARD = path.resolve(process.env.CARD || path.join(__dirname, '..', 'dist', 'day-wheel-card.js'));
 
 const ICON_NAMES = ['trash-can-outline', 'close', 'calendar-clock', 'calendar', 'alarm', 'radiator', 'window-shutter',
-  'water', 'robot-vacuum', 'help-circle-outline', 'weather-sunset', 'bed', 'sprinkler', 'minus', 'plus', 'thermostat', 'lightbulb-group', 'cog-outline'];
+  'water', 'robot-vacuum', 'help-circle-outline', 'weather-sunset', 'bed', 'sprinkler', 'minus', 'plus', 'thermostat', 'lightbulb-group', 'cog-outline', 'robot-outline'];
 const camel = (n) => 'mdi' + n.split('-').map((s) => s[0].toUpperCase() + s.slice(1)).join('');
 const ICONS = Object.fromEntries(ICON_NAMES.map((n) => [camel(n), mdi[camel(n)] || mdi.mdiHelpCircleOutline]));
 
@@ -75,6 +75,8 @@ window.__lang = ${JSON.stringify(opts.lang)};
 window.__dark = ${opts.theme !== 'light'};
 window.__admin = ${opts.admin !== false};
 window.__failUpdate = false;
+// Automatisations et blueprints (API de configuration de Home Assistant)
+window.__automations = {}; window.__blueprints = {}; window.__autoLoad = true; window.__autoFail = false;
 window.__subs = [];
 navigator.vibrate = () => true;
 window.addEventListener('haptic', (e) => window.__haptics.push(e.detail));
@@ -131,6 +133,17 @@ window.makeHass = () => ({
       return id ? Promise.resolve({ entity_id: msg.entity_id, unique_id: id, platform: 'schedule' }) : Promise.reject(new Error('not found'));
     }
     if (msg.type === 'schedule/list') return Promise.resolve(clone(window.__schedules));
+    if (msg.type === 'blueprint/list') return Promise.resolve(clone(Object.fromEntries(Object.entries(window.__blueprints).map(([p, b]) => [p, { metadata: b.metadata }]))));
+    if (msg.type === 'blueprint/save') {
+      if (window.__blueprints[msg.path] && !msg.allow_override) return Promise.reject({ code: 'already_exists', message: 'File already exists' });
+      window.__blueprints[msg.path] = { yaml: msg.yaml, metadata: { name: 'Day Wheel', domain: 'automation', source_url: msg.source_url, path: msg.path } };
+      return Promise.resolve({ overrides_existing: false });
+    }
+    if (msg.type === 'search/related') {
+      const ids = Object.entries(window.__automations).filter(([, c]) => c.use_blueprint && c.use_blueprint.input && c.use_blueprint.input.schedule_entity === msg.item_id).map(([id]) => id);
+      const ents = Object.keys(window.__states).filter((e) => e.startsWith('automation.') && ids.includes(window.__states[e].attributes.id));
+      return Promise.resolve(ents.length ? { automation: ents } : {});
+    }
     if (msg.type === 'schedule/update') {
       if (window.__failUpdate) return Promise.reject(new Error('refusé'));
       const { type, schedule_id, ...rest } = msg;
@@ -141,8 +154,19 @@ window.makeHass = () => ({
     }
     return Promise.reject(new Error('unknown ' + msg.type));
   },
-  callApi(method, path) {
-    window.__api.push({ method, path });
+  callApi(method, path, data) {
+    window.__api.push({ method, path, data: data === undefined ? undefined : clone(data) });
+    if (path.startsWith('config/automation/config/')) {
+      const id = decodeURIComponent(path.split('/').pop());
+      if (method === 'GET') {
+        const c = window.__automations[id];
+        return c ? Promise.resolve(clone({ id, ...c })) : Promise.reject({ status_code: 404, error: 'Resource not found', body: { message: 'Resource not found' } });
+      }
+      if (window.__autoFail) return Promise.reject({ status_code: 400, error: 'Message malformed: refusé' });
+      window.__automations[id] = clone(data);
+      if (window.__autoLoad) setTimeout(() => window.addAutomation(id, data.alias), 30);
+      return Promise.resolve({ result: 'ok' });
+    }
     const entity = decodeURIComponent(path.split('?')[0].replace('calendars/', ''));
     return Promise.resolve(clone(window.__calendar[entity] || []));
   },
@@ -158,7 +182,11 @@ window.setState = (entity, state, attributes) => {
   const prev = window.__states[entity] || { attributes: {} };
   window.__states = { ...window.__states, [entity]: { state, attributes: { ...prev.attributes, ...(attributes || {}) } } };
   document.querySelectorAll('day-wheel-card').forEach((el) => { if (el._config) el.hass = window.makeHass(); });
+  document.querySelectorAll('day-wheel-card-editor').forEach((el) => { if (el._config) el.hass = window.makeHass(); });
 };
+window.slug = (t) => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+// Automatisation chargée par Home Assistant : une entité automation.* avec son identifiant
+window.addAutomation = (id, alias, state = 'on') => window.setState('automation.' + window.slug(alias), state, { id, friendly_name: alias });
 window.sr = (id) => document.getElementById(id).shadowRoot;
 </script>
 <script src="/day-wheel-card.js"></script>

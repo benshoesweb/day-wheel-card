@@ -17,7 +17,7 @@ Roue des 24 heures pour les tableaux de bord Home Assistant : vos plannings, ré
   - **Heure** (`input_datetime`, `time`) : un repère (réveil, arrosage…) à faire glisser ;
   - **Horodatage** (`sensor` de type timestamp, ex. prochaine alarme du téléphone) : un repère ;
   - **Calendrier** (`calendar`) : les événements du jour.
-- **Chauffage, volets, lumières** : un planning peut piloter un thermostat, un volet roulant ou une lumière (ou un groupe de lumières) ; chaque plage a sa température, sa position ou sa luminosité, réglée au doigt. Le [blueprint fourni](#piloter-le-chauffage-les-volets-et-les-lumières) l'applique à l'heure dite.
+- **Chauffage, volets, lumières** : un planning peut piloter un thermostat, un volet roulant ou une lumière (ou un groupe de lumières) ; chaque plage a sa température, sa position ou sa luminosité, réglée au doigt. Une [automatisation créée par la carte](#lautomatisation-est-créée-pour-vous) l'applique à l'heure dite.
 - **Jours de la semaine** : consultez et modifiez le planning de n'importe quel jour.
 - **Résumé** par appui long sur le centre : toute la semaine des plannings avec leurs valeurs, les heures, les événements du jour et les réglages de la carte, dans une fenêtre aux couleurs du thème, adaptée au téléphone, à la tablette et au PC.
 - **Nuit et soleil** : la couronne des heures s'assombrit du coucher au lever du soleil.
@@ -71,9 +71,21 @@ layers:
     target: light.salon_groupe
 ```
 
-La carte ne fonctionne que lorsque le tableau de bord est affiché : pour que les appareils suivent le planning **à toute heure**, importez le blueprint [`day_wheel_schedule.yaml`](blueprints/day_wheel_schedule.yaml) et créez une automatisation par planning :
+### L'automatisation est créée pour vous
+
+La carte ne fonctionne que lorsque le tableau de bord est affiché : pour que les appareils suivent le planning **à toute heure**, il faut une automatisation sur le serveur. **La carte la crée elle-même**, une par planning, dès que vous réglez une première valeur sur une plage :
+
+- elle installe au besoin le blueprint [`day_wheel_schedule.yaml`](blueprints/day_wheel_schedule.yaml) (celui déjà importé est réutilisé), puis crée l'automatisation **« Day Wheel · Chauffage → Thermostat salon »** (nom du planning → appareil piloté) et la lance une fois, pour que la plage en cours s'applique tout de suite ;
+- une seule par planning : elle lit le planning à chaque changement, donc ajouter, déplacer ou supprimer une plage ne demande rien de plus, depuis la carte comme depuis Home Assistant ;
+- jamais de doublon : si une automatisation utilise déjà ce planning avec le blueprint (faite à la main, par exemple), la carte s'en sert ;
+- le **résumé** (appui long sur le centre) et l'**éditeur** (sous « Piloter ») indiquent son état (active, désactivée, absente) avec les boutons **Créer l'automatisation**, **Ouvrir** et, si vous avez changé l'appareil piloté, **Piloter …** pour la mettre à jour ;
+- c'est une automatisation normale : réglez ses valeurs hors plages ou ajoutez des appareils dans **Paramètres › Automatisations et scènes**.
+
+Seul un administrateur peut créer une automatisation. Avec `create_automation: false` (case dans l'éditeur), rien n'est créé tout seul : utilisez le bouton, ou importez le blueprint et créez l'automatisation vous-même :
 
 [![Importer le blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fbenshoesweb%2Fday-wheel-card%2Fblob%2Fmain%2Fblueprints%2Fday_wheel_schedule.yaml)
+
+Ce que fait l'automatisation :
 
 - **Pendant une plage** : la valeur de la plage est envoyée (thermostat rallumé s'il était éteint ; volet sans réglage de position : ouvert, ou fermé à 0 %). Une plage sans valeur prend la valeur choisie dans le blueprint.
 - **Hors des plages** : au choix, température ou position « hors plages » (17° et 0 % par défaut), extinction du thermostat ou des lumières, ou rien.
@@ -142,6 +154,7 @@ layers:
 | `show_legend` | légende sous le cadran | `true` |
 | `haptics` | retour haptique au doigt | `true` |
 | `summary` | résumé par appui long sur le centre | `true` |
+| `create_automation` | crée l'automatisation d'un planning piloté dès la première valeur réglée ([voir plus haut](#lautomatisation-est-créée-pour-vous)) | `true` |
 | `knob_theme` | `metal`, `ha` (tout le cadran aux couleurs du thème), `glass`, `neumorph`, `brass`, `carbon`, `neon` | `metal` |
 | `palette` | couleurs des anneaux sans couleur choisie : `default` (palette de la carte) ou `theme` (couleurs du thème : principale, succès, avertissement, info, erreur, accent) | `default` |
 | `theme` | `auto`, `light`, `dark` | `auto` |
@@ -178,7 +191,7 @@ La carte va bien avec [Radial Selector Card](https://github.com/benshoesweb/radi
 A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointments and calendars on one dial, with night, sun and the current time. **Schedule time ranges are edited right on the dial**: drag an end, drag a whole range, long-press an empty spot to add one, tap a range then the trash icon to delete it. The card and its visual editor follow Home Assistant's language (English or French).
 
 - **1 to 6 rings** (`layers`): `schedule` (editable time ranges), `input_datetime` / `time` (draggable time marker), timestamp `sensor` (marker), `calendar` (today's events).
-- **Heating, covers, lights**: give a schedule ring a device to control (`target`, "Control" in the editor): a thermostat (`climate`), a cover or a light (light groups included). Each time range then has a temperature, a position or a brightness, set with **− / +** in the center (limits and step from the device, or `min`, `max`, `step`), written along the range. The value is stored in the range's data (`temperature`, `position`, `brightness_pct`). Since the card only runs while the dashboard is shown, the [`day_wheel_schedule.yaml`](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fbenshoesweb%2Fday-wheel-card%2Fblob%2Fmain%2Fblueprints%2Fday_wheel_schedule.yaml) blueprint applies the values on time: the range's value during a range, an "outside" temperature / position, turning off, or nothing outside the ranges; restored on restart. Group several lights with a light group helper.
+- **Heating, covers, lights**: give a schedule ring a device to control (`target`, "Control" in the editor): a thermostat (`climate`), a cover or a light (light groups included). Each time range then has a temperature, a position or a brightness, set with **− / +** in the center (limits and step from the device, or `min`, `max`, `step`), written along the range. The value is stored in the range's data (`temperature`, `position`, `brightness_pct`). Since the card only runs while the dashboard is shown, an automation built on the [`day_wheel_schedule.yaml`](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fbenshoesweb%2Fday-wheel-card%2Fblob%2Fmain%2Fblueprints%2Fday_wheel_schedule.yaml) blueprint applies the values on time: the range's value during a range, an "outside" temperature / position, turning off, or nothing outside the ranges; restored on restart. **The card creates it for you** (administrators), one per schedule, as soon as you set a first value: it installs the blueprint if needed, creates "Day Wheel · Heating → Living room thermostat" and runs it once; adding, moving or deleting ranges needs nothing more. No duplicates: an existing automation using the schedule with the blueprint is reused. The summary and the editor show its state with **Create the automation**, **Open** and **Control …** (update after changing the device) buttons; `create_automation: false` turns automatic creation off. Group several lights with a light group helper.
 - **Summary** on a long press of the center (`summary`, on by default): every schedule's full week with values and daily / weekly totals, times, today's events and the card settings, in a window that follows the Home Assistant theme (or the card's light / dark theme), scrolls when long, goes full screen on phones and sits centered on tablets and computers; close it with the top-right cross, Escape or a click outside.
 - **Days of the week** to view and edit any day, **night shading** from sunset to sunrise, a **current-time hand**, and what's on / next in the center.
 - Uses the **Home Assistant server time zone**, live updates, 7 center styles, `noon_top` orientation, adjustable `snap` (minutes), haptics, light / dark.
@@ -192,14 +205,14 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 ```bash
 npm ci
 npx playwright install chromium
-npm test          # 179 vérifications dans Chrome : affichage, glisser, créer, supprimer, valeurs, résumé, droits, éditeur…
+npm test          # 215 vérifications dans Chrome : affichage, glisser, créer, supprimer, valeurs, résumé, automatisations, droits, éditeur…
 ```
 
 Les tests tournent aussi sur GitHub à chaque modification (workflow **Tests**). Historique : [CHANGELOG.md](CHANGELOG.md).
 
 ## Publier une nouvelle version
 
-1. Modifiez `dist/day-wheel-card.js` et notez le changement dans [CHANGELOG.md](CHANGELOG.md), en français et en anglais, sous « Non publié ».
+1. Modifiez `dist/day-wheel-card.js` (après une modification du blueprint, recopiez-le dans la carte : `node scripts/sync-blueprint.js`) et notez le changement dans [CHANGELOG.md](CHANGELOG.md), en français et en anglais, sous « Non publié ».
 2. Passez la section « Non publié » au numéro de version (et `package.json`), puis fusionnez dans `main`.
 3. **Ensuite seulement**, créez la release GitHub `vX.Y.Z` sur `main` (ou `./scripts/release.sh vX.Y.Z`) : le tag contient alors le bon CHANGELOG.
 
