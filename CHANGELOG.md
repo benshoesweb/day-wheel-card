@@ -4,6 +4,28 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les
 
 *Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), following [semantic versioning](https://semver.org/). Each version is described in French, then in English.*
 
+## [1.3.0] — 2026-11-06
+
+### Ajouté
+- **Plannings qui pilotent un appareil** : nouvelle option d'anneau **`target`** (« Piloter » dans l'éditeur) pour un planning. Choisissez un **thermostat** (`climate`), un **volet roulant** (`cover`) ou une **lumière** (`light`, groupes de lumières compris) : chaque plage reçoit alors une **température**, une **position** ou une **luminosité**, réglée au centre avec **− / +** (ou les flèches haut / bas du clavier) quand la plage est choisie. La valeur est écrite le long de la plage et affichée au centre (« → 19:00 21° »). Une nouvelle plage reprend la valeur de sa voisine.
+- La valeur est rangée dans les **données de la plage** (`data` : `temperature`, `position` ou `brightness_pct`), que Home Assistant expose en attribut du planning pendant la plage. Les autres données de la plage sont conservées.
+- Bornes et pas d'après l'appareil (température mini / maxi et pas du thermostat, 0 – 100 % par 10 pour les volets, 10 – 100 % par 10 pour les lumières), modifiables avec `min`, `max` et `step`.
+- **Blueprint** [`day_wheel_schedule.yaml`](blueprints/day_wheel_schedule.yaml) qui applique ces valeurs à l'heure dite, même tableau de bord fermé : température de la plage (thermostat rallumé si besoin), position (ou ouverture / fermeture pour un volet sans position), luminosité ; hors des plages, température ou position « hors plages », extinction, ou rien. Une valeur changée pendant la plage en cours s'applique aussitôt ; tout est rétabli au redémarrage. Testé sur Home Assistant 2026.11 (thermostats, volets, groupe de lumières, redémarrage).
+- **Résumé par appui long sur le centre** (option `summary`, activée par défaut, réglable dans l'éditeur) : une fenêtre récapitule la semaine entière de chaque planning (plages, valeurs, durée du jour, total de la semaine, appareil piloté), les heures des repères, la prochaine alarme, les événements du jour, les réglages de la carte, le soleil et les droits de modification. Elle suit le thème Home Assistant (ou le thème clair / sombre choisi), se met à jour en direct et défile s'il y a beaucoup d'informations. Elle est en plein écran sur téléphone et centrée sur tablette et PC ; on la ferme avec la croix en haut à droite, Échap ou un clic à côté. Au clavier : Entrée sur le centre.
+- **Automatisation créée par la carte** (une par planning piloté) : dès qu'une première valeur est réglée, la carte installe au besoin le blueprint, crée l'automatisation « Day Wheel · *planning* → *appareil* » et la lance une fois pour appliquer tout de suite la plage en cours. Ajouter, déplacer ou supprimer des plages ne demande rien de plus. Jamais de doublon : une automatisation qui utilise déjà ce planning avec le blueprint est réutilisée. Le résumé et l'éditeur affichent son état (active, désactivée, absente, non chargée) avec les boutons **Créer l'automatisation**, **Ouvrir** et **Piloter …** (mise à jour après un changement d'appareil). Option `create_automation: false` pour ne créer qu'avec le bouton. Réservé aux administrateurs. Testé de bout en bout sur Home Assistant 2026.11.
+- 113 vérifications automatiques de plus (215 au total).
+
+#### English
+
+##### Added
+- **Schedules that control a device**: new ring option **`target`** ("Control" in the editor) for a schedule. Pick a **thermostat** (`climate`), a **cover** (`cover`) or a **light** (`light`, light groups included): each time range then gets a **temperature**, a **position** or a **brightness**, set in the center with **− / +** (or the up / down arrow keys) when the range is selected. The value is written along the range and shown in the center ("→ 19:00 21°"). A new range takes its neighbour's value.
+- The value is stored in the **range's data** (`data`: `temperature`, `position` or `brightness_pct`), which Home Assistant exposes as a schedule attribute during the range. The range's other data is kept.
+- Limits and step follow the device (thermostat min / max temperature and step, 0 – 100 % by 10 for covers, 10 – 100 % by 10 for lights), adjustable with `min`, `max` and `step`.
+- **Blueprint** [`day_wheel_schedule.yaml`](blueprints/day_wheel_schedule.yaml) that applies these values on time, even with the dashboard closed: the range's temperature (thermostat turned back on if needed), position (or open / close for a cover without position), brightness; outside the ranges, an "outside" temperature or position, turning off, or nothing. A value changed during the current range applies right away; everything is restored on restart. Tested on Home Assistant 2026.11 (thermostats, covers, light group, restart).
+- **Summary on a long press of the center** (`summary` option, on by default, available in the editor): a window recaps each schedule's whole week (ranges, values, daily duration, weekly total, controlled device), marker times, the next alarm, today's events, the card settings, the sun and editing rights. It follows the Home Assistant theme (or the chosen light / dark theme), updates live and scrolls when there is a lot to show. It is full screen on phones and centered on tablets and computers; close it with the top-right cross, Escape or a click outside. With a keyboard: Enter on the center.
+- **Automation created by the card** (one per controlled schedule): as soon as a first value is set, the card installs the blueprint if needed, creates the "Day Wheel · *schedule* → *device*" automation and runs it once so the current range applies right away. Adding, moving or deleting ranges needs nothing more. No duplicates: an automation already using this schedule with the blueprint is reused. The summary and the editor show its state (active, turned off, missing, not loaded) with **Create the automation**, **Open** and **Control …** (update after changing the device) buttons. Option `create_automation: false` to create it only with the button. Administrators only. Tested end to end on Home Assistant 2026.11.
+- 113 more automated checks (215 in total).
+
 ## [1.2.1] — 2026-11-05
 
 ### Modifié
@@ -70,6 +92,7 @@ First public release.
 - Visual editor in French and English.
 - 78 automated checks in Chrome (GitHub Actions).
 
+[1.3.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.3.0
 [1.2.1]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.2.1
 [1.2.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.2.0
 [1.1.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.1.0
