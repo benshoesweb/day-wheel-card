@@ -1,16 +1,240 @@
 # Day Wheel Card
 
-Roue des 24 heures pour les tableaux de bord Home Assistant : vos plannings, réveils, rendez-vous et calendriers sur un cadran, avec la nuit, le soleil et l'heure actuelle. Les plages des plannings se modifient **directement au doigt** : on glisse une extrémité, on déplace une plage, on en crée une par appui long.
+A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointments and calendars on one dial, with night, sun and the current time. Schedule time ranges are edited **right on the dial**, and can control your thermostats, covers and lights.
 
-*24-hour wheel card for Home Assistant dashboards — [English below](#english).*
+*Roue des 24 heures pour les tableaux de bord Home Assistant : plannings, réveils, rendez-vous et calendriers sur un cadran, modifiables au doigt.*
 
-[![Ouvrir dans Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=benshoesweb&repository=day-wheel-card&category=plugin)
+**[English](#english)** · **[Français](#français)**
+
+[![Open in Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=benshoesweb&repository=day-wheel-card&category=plugin)
 [![Validate](https://github.com/benshoesweb/day-wheel-card/actions/workflows/validate.yml/badge.svg)](https://github.com/benshoesweb/day-wheel-card/actions/workflows/validate.yml)
 [![Tests](https://github.com/benshoesweb/day-wheel-card/actions/workflows/tests.yml/badge.svg)](https://github.com/benshoesweb/day-wheel-card/actions/workflows/tests.yml)
 
-![Aperçu](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/apercu-sombre.png)
+![Preview](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/apercu-sombre.png)
 
-## Fonctionnalités
+---
+
+## English
+
+The card and its visual editor follow Home Assistant's language (English or French).
+
+### Features
+
+- **1 to 6 rings**, one per entity, from the outside in:
+  - **Schedule** (`schedule`, Home Assistant's "Schedule" helper): the day's time ranges, **edited with a finger or the mouse**;
+  - **Time** (`input_datetime`, `time`): a marker (alarm, watering…) you drag;
+  - **Timestamp** (`sensor` with the timestamp device class, e.g. the phone's next alarm): a marker;
+  - **Calendar** (`calendar`): today's events.
+- **Heating, covers, lights**: a schedule can control a thermostat, a cover or a light (or a light group); each time range has its own temperature, position or brightness, set with a finger. An [automation created by the card](#the-automation-is-created-for-you) applies it on time.
+- **Days of the week**: view and edit any day's schedule.
+- **Summary** on a long press of the center: every schedule's week with its values, the times, today's events and the card settings, in a window that follows the theme and fits phones, tablets and computers.
+- **Night and sun**: the hour ring darkens from sunset to sunrise.
+- **Current-time hand** and, in the center, what's on and what's next ("→ 19:00" = until 19:00).
+- **Server time**: the dial follows Home Assistant's time zone, not the tablet's.
+- **Live updates**: a schedule changed elsewhere is redrawn right away.
+- **7 center styles** (metal, Home Assistant theme, glass, soft, brass, carbon, neon), noon or midnight at the top, **haptic feedback**, light or dark theme.
+- **Follows the Home Assistant theme**: with the `ha` style, the whole dial (face, empty rings, ticks, day / night ring, center, hand) uses the active theme's colors, and `palette: theme` gives the rings the theme's colors. Theme changes apply instantly.
+- **Card background** of your choice, transparent included, like in Radial Selector Card.
+- **Full visual editor**.
+
+### Editing a schedule
+
+![Editing](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/edition.png)
+
+| Gesture | Effect |
+|---|---|
+| Drag the end of a range | changes the start or end time (adjustable step: 15 min by default) |
+| Drag the middle of a range | moves it without changing its length |
+| Long press an empty spot of the ring | new one-hour range |
+| Tap a range | selects it: times and length in the center, trash icon to delete it (or the Delete key) |
+| − / + in the center (range selected) | changes its temperature, position or brightness (schedule with `target`); also the up / down arrow keys |
+| Drag a time marker | changes the time of the `input_datetime` or `time` |
+| Days under the dial | show (and edit) that day's schedule |
+| Long press the center | opens the **summary** (keyboard: Enter on the center) |
+| Legend | opens the entity's more-info dialog |
+
+Ranges never overlap and stop at midnight, as in Home Assistant's editor. A range's custom data (`data`) is kept. Editing is for **administrators** (Home Assistant rule); other users see the dial read only. Schedules defined in YAML can't be read by cards: create them under **Settings › Devices & services › Helpers › Schedule**.
+
+### Controlling heating, covers and lights
+
+![Temperatures and positions on the ranges](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/pilotage.png)
+
+Give a schedule ring a device to control (**Control** in the editor, `target` in YAML):
+
+| Device | Value of each range | Default step |
+|---|---|---|
+| Thermostat (`climate`) | temperature | the thermostat's step and limits (usually 0.5°) |
+| Cover (`cover`) | position, from 0 (closed) to 100 % (open) | 10 % |
+| Light (`light`), light groups included | brightness | 10 to 100 %, by 10 % |
+
+Select a range: its value shows in the center, between **−** and **+**. It is also written along the range, and the center shows it at rest ("→ 19:00 21°"). A new range takes its neighbour's value. `min`, `max` and `step` change the limits and the step.
+
+```yaml
+type: custom:day-wheel-card
+layers:
+  - entity: schedule.heating
+    target: climate.living_room
+  - entity: schedule.shutters
+    target: cover.living_room
+  - entity: schedule.lighting
+    target: light.living_room_group
+```
+
+#### The automation is created for you
+
+The card only runs while the dashboard is shown: for the devices to follow the schedule **at any time**, an automation on the server is needed. **The card creates it itself**, one per schedule, as soon as you set a first value on a range:
+
+- it installs the [`day_wheel_schedule.yaml`](blueprints/day_wheel_schedule.yaml) blueprint if needed (one already imported is reused), creates the **"Day Wheel · Heating → Living room thermostat"** automation (schedule name → controlled device) and runs it once, so the current range applies right away;
+- only one per schedule: it reads the schedule on every change, so adding, moving or deleting a range needs nothing more, from the card or from Home Assistant;
+- no duplicates: if an automation already uses this schedule with the blueprint (made by hand, for example), the card uses it;
+- the **summary** (long press on the center) and the **editor** (under "Control") show its state (active, turned off, missing) with the **Create the automation**, **Open** and, if you changed the controlled device, **Control …** buttons to update it;
+- it is a regular automation: set its outside values or add devices under **Settings › Automations & scenes**.
+
+Only an administrator can create an automation. With `create_automation: false` (checkbox in the editor), nothing is created on its own: use the button, or import the blueprint and create the automation yourself:
+
+[![Import the blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fbenshoesweb%2Fday-wheel-card%2Fblob%2Fmain%2Fblueprints%2Fday_wheel_schedule.yaml)
+
+What the automation does:
+
+- **During a range**: the range's value is sent (thermostat turned back on if it was off; a cover without position control: opened, or closed at 0 %). A range without a value uses the value set in the blueprint.
+- **Outside the ranges**: your choice of an "outside" temperature or position (17° and 0 % by default), turning the thermostat or lights off, or nothing.
+- A value changed on the current range applies right away; a manual adjustment stays until the next range. When Home Assistant restarts, everything is restored.
+- **Several lights together**: create a light group (**Settings › Devices & services › Helpers › Create helper › Group › Light group**) and pick it as the device. The blueprint also accepts several devices for one schedule (for example all the thermostats upstairs).
+
+The value is stored in the range's data (`temperature`, `position` or `brightness_pct`): Home Assistant shows it as a schedule attribute during the range, and your own automations can use it too. The blueprint needs Home Assistant 2024.10 or later.
+
+### Summary
+
+![Summary](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/resume.png)
+
+A **long press on the center** of the dial opens a window that recaps everything:
+
+- for each schedule, **the 7 days** with their ranges and values (temperature, position, brightness), each day's length and the week's total; today is highlighted, and the controlled device and its automation are shown;
+- the time of alarms and markers, the date of the next alarm, today's calendar events;
+- the card settings (step, orientation, style, colors, theme), sunrise and sunset, and whether you can edit the schedules.
+
+The window uses the **Home Assistant theme's** colors (or the light / dark theme chosen for the card) and updates live. When there is a lot to show, it **scrolls**. On a **phone** it takes the whole screen, like Home Assistant's dialogs; on a **tablet** or **computer** it shows in the center. To close it: the **cross** at the top right, the Escape key, or a click outside. `summary: false` turns the long press off.
+
+### Installation
+
+#### Marketplace (recommended)
+
+The card is in the official HACS catalog, built into Home Assistant since 2026.11:
+
+- **Home Assistant 2026.11 and later**: **Settings › Marketplace**, search for "Day Wheel Card", then **Download**.
+- **Earlier versions, with HACS installed**: **HACS**, search for "Day Wheel Card", then **Download**.
+
+The **Open in Home Assistant** button above leads straight to the card. The dashboard resource is added automatically, and new versions are offered as updates.
+
+Compatibility: tested with Home Assistant 2026.11 (schedules, calendars, times, editor and blueprint). The blueprint needs Home Assistant 2024.10 or later.
+
+#### Manual
+
+1. Download `day-wheel-card.js` from the [latest release](https://github.com/benshoesweb/day-wheel-card/releases/latest).
+2. Copy it to `/config/www/`.
+3. **Settings › Dashboards › ⋮ › Resources**: add `/local/day-wheel-card.js` (JavaScript module).
+
+### Configuration
+
+Everything can be set in the visual editor. YAML example:
+
+```yaml
+type: custom:day-wheel-card
+name: My day
+knob_theme: metal
+layers:
+  - entity: schedule.heating
+    color: "#ff7043"
+  - entity: schedule.shutters
+    color: "#4fc3f7"
+  - entity: input_datetime.alarm
+    icon: mdi:alarm
+  - entity: calendar.family
+```
+
+| Option | Values | Default |
+|---|---|---|
+| `layers` | 1 to 6 rings: `entity`, `name` (otherwise the name Home Assistant displays), `color`, `icon` (or just the entity_id); for a schedule: `target` (thermostat, cover or light to control), `min`, `max`, `step` ([see above](#controlling-heating-covers-and-lights)) | — |
+| `name` | card title, using Home Assistant's standard card title (it follows the theme: `--ha-card-header-font-size`, `--ha-card-header-color`…) | none |
+| `orientation` | `midnight_top` (midnight at the top), `noon_top` (noon at the top) | `midnight_top` |
+| `snap` | adjust step in minutes: `5`, `10`, `15`, `30`, `60` | `15` |
+| `show_sun` | day / night ring, sunrise and sunset | `true` |
+| `show_days` | days of the week (with a schedule or a calendar) | `true` |
+| `show_legend` | legend under the dial | `true` |
+| `haptics` | haptic feedback under the finger | `true` |
+| `summary` | summary on a long press of the center | `true` |
+| `create_automation` | creates the automation of a controlled schedule as soon as a first value is set ([see above](#the-automation-is-created-for-you)) | `true` |
+| `knob_theme` | `metal`, `ha` (whole dial in the theme's colors), `glass`, `neumorph`, `brass`, `carbon`, `neon` | `metal` |
+| `palette` | colors of rings without a chosen color: `default` (card palette) or `theme` (theme colors: primary, success, warning, info, error, accent) | `default` |
+| `theme` | `auto`, `light`, `dark` | `auto` |
+| `card_style` | card background and border: `standard` (theme background + border), `border_only` (border, no background), `background_only` (background, no border), `transparent` (no background, no border) | `standard` |
+| `card_background`, `card_border_color` | CSS colors of the background and border (`#1c1f26`, `rgb(…)`, `var(--primary-color)`…) | theme |
+
+![Light theme](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/apercu-clair.png)
+
+#### Card background
+
+As in Radial Selector Card, choose the background and border in the editor (**Card appearance**): theme background + border (default), border only, background only or **transparent**, for example to place the dial straight on the dashboard background. The background and border colors can also be picked; without a chosen color, the Home Assistant theme's colors apply.
+
+![Card backgrounds](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/fonds.png)
+
+```yaml
+type: custom:day-wheel-card
+card_style: transparent
+layers:
+  - schedule.heating
+```
+
+#### Follow the Home Assistant theme
+
+For the whole card to change with your theme, choose in the editor **Center style: Home Assistant theme**, **Colors of rings without a chosen color: Home Assistant theme colors** and **Theme: Auto (HA theme)**:
+
+```yaml
+type: custom:day-wheel-card
+knob_theme: ha
+palette: theme
+layers:
+  - schedule.heating
+  - schedule.shutters
+  - input_datetime.alarm
+```
+
+Example with a Nord theme, dark then light (from left to right: metal, `ha`, `ha` + `palette: theme`):
+
+![Dark theme](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/theme-sombre.png)
+![Light theme](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/theme-clair.png)
+
+Colors picked by hand for a ring (`color`) still win.
+
+#### With Radial Selector Card
+
+The card goes well with [Radial Selector Card](https://github.com/benshoesweb/radial-selector-card) (same knob styles): one to control the lights, the other for the schedules.
+
+### Development
+
+```bash
+npm ci
+npx playwright install chromium
+npm test          # 237 checks in Chrome: display, drag, create, delete, values, summary, automations, rights, editor…
+```
+
+The tests also run on GitHub on every change (**Tests** workflow). History: [CHANGELOG.md](CHANGELOG.md).
+
+### Publishing a new version
+
+1. Edit `dist/day-wheel-card.js` (after changing the blueprint, copy it into the card: `node scripts/sync-blueprint.js`) and describe the change in [CHANGELOG.md](CHANGELOG.md), in French and in English, under "Non publié" (unreleased).
+2. Rename the "Non publié" section to the version number (and update `package.json`), then merge into `main`.
+3. **Only then**, create the GitHub release `vX.Y.Z` on `main` (or `./scripts/release.sh vX.Y.Z`): the tag then contains the right CHANGELOG.
+
+The **Release** workflow attaches the card file to the release; the Marketplace then offers it as an update.
+
+---
+
+## Français
+
+La carte et son éditeur visuel suivent la langue de Home Assistant (français ou anglais).
+
+### Fonctionnalités
 
 - **1 à 6 anneaux**, un par entité, de l'extérieur vers l'intérieur :
   - **Planning** (`schedule`, l'aide « Planning » de Home Assistant) : les plages du jour, **modifiables au doigt ou à la souris** ;
@@ -26,9 +250,10 @@ Roue des 24 heures pour les tableaux de bord Home Assistant : vos plannings, ré
 - Mises à jour **en direct** : un planning modifié ailleurs se redessine aussitôt.
 - **7 styles de centre** (métal, thème Home Assistant, verre, doux, laiton, carbone, néon), midi ou minuit en haut, **retour haptique**, thème clair ou sombre.
 - **Suit le thème Home Assistant** : avec le style `ha`, tout le cadran (fond, anneaux vides, graduations, couronne jour / nuit, centre, aiguille) prend les couleurs du thème actif, et `palette: theme` donne aux anneaux les couleurs du thème. Le changement de thème est immédiat.
-- **Éditeur visuel complet** en français ou en anglais.
+- **Fond de la carte** au choix, transparent compris, comme dans Radial Selector Card.
+- **Éditeur visuel complet**.
 
-## Modifier un planning
+### Modifier un planning
 
 ![Édition](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/edition.png)
 
@@ -46,7 +271,7 @@ Roue des 24 heures pour les tableaux de bord Home Assistant : vos plannings, ré
 
 Les plages ne se chevauchent jamais et s'arrêtent à minuit, comme dans l'éditeur de Home Assistant. Les données personnalisées d'une plage (`data`) sont conservées. La modification est réservée aux **administrateurs** (règle de Home Assistant) ; les autres utilisateurs voient le cadran en lecture seule. Les plannings définis en YAML ne sont pas lisibles par les cartes : créez-les depuis **Paramètres › Appareils et services › Entrées › Planning**.
 
-## Piloter le chauffage, les volets et les lumières
+### Piloter le chauffage, les volets et les lumières
 
 ![Températures et positions sur les plages](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/pilotage.png)
 
@@ -71,7 +296,7 @@ layers:
     target: light.salon_groupe
 ```
 
-### L'automatisation est créée pour vous
+#### L'automatisation est créée pour vous
 
 La carte ne fonctionne que lorsque le tableau de bord est affiché : pour que les appareils suivent le planning **à toute heure**, il faut une automatisation sur le serveur. **La carte la crée elle-même**, une par planning, dès que vous réglez une première valeur sur une plage :
 
@@ -94,38 +319,38 @@ Ce que fait l'automatisation :
 
 La valeur est rangée dans les données de la plage (`temperature`, `position` ou `brightness_pct`) : Home Assistant l'affiche en attribut du planning pendant la plage, et vos propres automatisations peuvent aussi s'en servir. Le blueprint demande Home Assistant 2024.10 ou plus.
 
-## Résumé
+### Résumé
 
 ![Résumé](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/resume.png)
 
 Un **appui long sur le centre** du cadran ouvre une fenêtre qui récapitule tout :
 
-- pour chaque planning, **les 7 jours** avec leurs plages, leurs valeurs (température, position, luminosité), la durée de chaque jour et le total de la semaine ; aujourd'hui est mis en avant, et l'appareil piloté est indiqué ;
+- pour chaque planning, **les 7 jours** avec leurs plages et leurs valeurs (température, position, luminosité), la durée de chaque jour et le total de la semaine ; aujourd'hui est mis en avant, et l'appareil piloté et son automatisation sont indiqués ;
 - l'heure des réveils et repères, la date de la prochaine alarme, les événements du jour des calendriers ;
 - les réglages de la carte (pas, orientation, style, couleurs, thème), le lever et le coucher du soleil, et si vous pouvez modifier les plannings.
 
 La fenêtre prend les couleurs du **thème Home Assistant** (ou du thème clair / sombre choisi pour la carte) et se met à jour en direct. S'il y a beaucoup d'informations, elle **défile**. Sur un **téléphone**, elle occupe tout l'écran, comme les fenêtres de Home Assistant ; sur une **tablette** ou un **PC**, elle s'affiche au centre. Pour la fermer : la **croix** en haut à droite, la touche Échap, ou un clic à côté. Option `summary: false` pour désactiver l'appui long.
 
-## Installation
+### Installation
 
-### Marketplace (recommandé)
+#### Marketplace (recommandé)
 
 La carte fait partie du catalogue officiel de HACS, intégré à Home Assistant depuis la version 2026.11 :
 
 - **Home Assistant 2026.11 et plus** : **Paramètres › Marketplace**, cherchez « Day Wheel Card », puis **Télécharger**.
 - **Versions précédentes, avec HACS installé** : **HACS**, cherchez « Day Wheel Card », puis **Télécharger**.
 
-Le bouton **Ouvrir dans Home Assistant** ci-dessus mène directement à la carte. La ressource du tableau de bord est ajoutée automatiquement, et les nouvelles versions sont proposées en mise à jour.
+Le bouton **Open in Home Assistant** en haut de la page mène directement à la carte. La ressource du tableau de bord est ajoutée automatiquement, et les nouvelles versions sont proposées en mise à jour.
 
 Compatibilité : testée avec Home Assistant 2026.11 (plannings, calendriers, heures, éditeur et blueprint). Le blueprint demande Home Assistant 2024.10 ou plus.
 
-### Manuelle
+#### Manuelle
 
 1. Téléchargez `day-wheel-card.js` depuis la [dernière release](https://github.com/benshoesweb/day-wheel-card/releases/latest).
 2. Copiez-le dans `/config/www/`.
 3. **Paramètres › Tableaux de bord › ⋮ › Ressources** : ajoutez `/local/day-wheel-card.js` (module JavaScript).
 
-## Configuration
+### Configuration
 
 Tout se règle dans l'éditeur visuel. Exemple en YAML :
 
@@ -163,7 +388,7 @@ layers:
 
 ![Thème clair](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/apercu-clair.png)
 
-### Fond de la carte
+#### Fond de la carte
 
 Comme pour Radial Selector Card, choisissez dans l'éditeur (**Apparence de la carte**) le fond et le contour : fond + contour du thème (par défaut), contour seul, fond seul ou **transparente**, par exemple pour poser le cadran directement sur le fond du tableau de bord. Les couleurs du fond et du contour peuvent aussi être choisies ; sans couleur choisie, celles du thème Home Assistant s'appliquent.
 
@@ -176,9 +401,9 @@ layers:
   - schedule.chauffage
 ```
 
-### Suivre le thème Home Assistant
+#### Suivre le thème Home Assistant
 
-Pour que toute la carte change avec ton thème, choisis dans l'éditeur **Style du centre : Thème Home Assistant**, **Couleurs des anneaux : Couleurs du thème HA** et **Thème : Auto** :
+Pour que toute la carte change avec votre thème, choisissez dans l'éditeur **Style du centre : Thème Home Assistant**, **Couleurs des anneaux sans couleur choisie : Couleurs du thème HA** et **Thème : Auto (thème HA)** :
 
 ```yaml
 type: custom:day-wheel-card
@@ -197,26 +422,11 @@ Exemple avec un thème Nord, en sombre puis en clair (de gauche à droite : mét
 
 Les couleurs choisies à la main pour un anneau (`color`) restent prioritaires.
 
-### Avec Radial Selector Card
+#### Avec Radial Selector Card
 
 La carte va bien avec [Radial Selector Card](https://github.com/benshoesweb/radial-selector-card) (mêmes styles de bouton) : l'une pour piloter les lumières, l'autre pour les horaires.
 
-## English
-
-A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointments and calendars on one dial, with night, sun and the current time. **Schedule time ranges are edited right on the dial**: drag an end, drag a whole range, long-press an empty spot to add one, tap a range then the trash icon to delete it. The card and its visual editor follow Home Assistant's language (English or French).
-
-- **1 to 6 rings** (`layers`): `schedule` (editable time ranges), `input_datetime` / `time` (draggable time marker), timestamp `sensor` (marker), `calendar` (today's events).
-- **Heating, covers, lights**: give a schedule ring a device to control (`target`, "Control" in the editor): a thermostat (`climate`), a cover or a light (light groups included). Each time range then has a temperature, a position or a brightness, set with **− / +** in the center (limits and step from the device, or `min`, `max`, `step`), written along the range. The value is stored in the range's data (`temperature`, `position`, `brightness_pct`). Since the card only runs while the dashboard is shown, an automation built on the [`day_wheel_schedule.yaml`](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fbenshoesweb%2Fday-wheel-card%2Fblob%2Fmain%2Fblueprints%2Fday_wheel_schedule.yaml) blueprint applies the values on time: the range's value during a range, an "outside" temperature / position, turning off, or nothing outside the ranges; restored on restart. **The card creates it for you** (administrators), one per schedule, as soon as you set a first value: it installs the blueprint if needed, creates "Day Wheel · Heating → Living room thermostat" and runs it once; adding, moving or deleting ranges needs nothing more. No duplicates: an existing automation using the schedule with the blueprint is reused. The summary and the editor show its state with **Create the automation**, **Open** and **Control …** (update after changing the device) buttons; `create_automation: false` turns automatic creation off. Group several lights with a light group helper.
-- **Summary** on a long press of the center (`summary`, on by default): every schedule's full week with values and daily / weekly totals, times, today's events and the card settings, in a window that follows the Home Assistant theme (or the card's light / dark theme), scrolls when long, goes full screen on phones and sits centered on tablets and computers; close it with the top-right cross, Escape or a click outside.
-- **Days of the week** to view and edit any day, **night shading** from sunset to sunrise, a **current-time hand**, and what's on / next in the center.
-- **Card background**, like Radial Selector Card: `card_style` `standard` (theme background + border, default), `border_only`, `background_only` or `transparent`, with optional `card_background` / `card_border_color` colors (theme colors otherwise).
-- Uses the **Home Assistant server time zone**, live updates, 7 center styles, `noon_top` orientation, adjustable `snap` (minutes), haptics, light / dark.
-- **Follows the Home Assistant theme**: with `knob_theme: ha`, the whole dial (face, empty rings, ticks, day / night ring, center, hand) uses the active theme's colors, and `palette: theme` gives the rings the theme's colors (primary, success, warning, info, error, accent). Theme changes apply instantly; a ring's own `color` still wins.
-- Editing schedules requires an **administrator** (Home Assistant rule); YAML-defined schedules can't be read by cards, create them under **Settings › Devices & services › Helpers › Schedule**.
-
-**Install**: the card is in the official HACS catalog, built into Home Assistant since 2026.11 — **Settings › Marketplace**, search for "Day Wheel Card" (on older versions: **HACS**). The **Open in Home Assistant** button above leads straight to it. Then add the card from the dashboard editor; the options table above lists the YAML keys. Tested with Home Assistant 2026.11; the blueprint needs 2024.10 or later.
-
-## Développement
+### Développement
 
 ```bash
 npm ci
@@ -226,10 +436,10 @@ npm test          # 237 vérifications dans Chrome : affichage, glisser, créer,
 
 Les tests tournent aussi sur GitHub à chaque modification (workflow **Tests**). Historique : [CHANGELOG.md](CHANGELOG.md).
 
-## Publier une nouvelle version
+### Publier une nouvelle version
 
 1. Modifiez `dist/day-wheel-card.js` (après une modification du blueprint, recopiez-le dans la carte : `node scripts/sync-blueprint.js`) et notez le changement dans [CHANGELOG.md](CHANGELOG.md), en français et en anglais, sous « Non publié ».
 2. Passez la section « Non publié » au numéro de version (et `package.json`), puis fusionnez dans `main`.
 3. **Ensuite seulement**, créez la release GitHub `vX.Y.Z` sur `main` (ou `./scripts/release.sh vX.Y.Z`) : le tag contient alors le bon CHANGELOG.
 
-Le workflow **Release** joint le fichier de la carte à la release ; la Marketplace la propose ensuite en mise à jour. La carte est déjà dans le catalogue officiel de HACS : il n'y a plus de demande à faire.
+Le workflow **Release** joint le fichier de la carte à la release ; la Marketplace la propose ensuite en mise à jour.
