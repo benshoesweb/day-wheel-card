@@ -1,6 +1,6 @@
 {
   "name": "day-wheel-card",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "private": true,
   "description": "24-hour wheel card for Home Assistant dashboards: schedules you edit with a finger, times, calendars, sun",
   "license": "MIT",

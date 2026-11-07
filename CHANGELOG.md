@@ -4,6 +4,18 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les
 
 *Based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), following [semantic versioning](https://semver.org/). Each version is described in French, then in English.*
 
+## [1.5.0] — 2026-11-07
+
+### Ajouté
+- **Format de l'heure** : nouvelle option **`time_format`** (« Format de l'heure » dans l'éditeur) : `24` (19:30, par défaut : rien ne change pour les cartes existantes), `12` (7:30 PM) ou `auto`, qui suit le réglage « Format de l'heure » du profil Home Assistant de chaque utilisateur (ou l'usage de sa langue). En 12 heures, toutes les heures passent au format AM / PM : centre, plages, repères, soleil, résumé, prochaine alarme ; le cadran est numéroté 12a, 3a … 9p ; une plage dans la même demi-journée s'écrit « 5:00 – 10:30 PM ». Le texte du centre s'adapte à la taille du cadran.
+- 20 vérifications automatiques de plus (257 au total).
+
+#### English
+
+##### Added
+- **Time format**: new **`time_format`** option ("Time format" in the editor): `24` (19:30, default: existing cards don't change), `12` (7:30 PM) or `auto`, which follows each user's "Time format" setting in their Home Assistant profile (or their language's usage). In 12-hour mode every time switches to AM / PM: center, ranges, markers, sun, summary, next alarm; the dial is numbered 12a, 3a … 9p; a range within the same half-day reads "5:00 – 10:30 PM". The center text adapts to the dial's size.
+- 20 more automated checks (257 in total).
+
 ## [1.4.1] — 2026-11-06
 
 ### Corrigé
@@ -120,6 +132,7 @@ First public release.
 - Visual editor in French and English.
 - 78 automated checks in Chrome (GitHub Actions).
 
+[1.5.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.5.0
 [1.4.1]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.4.1
 [1.4.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.4.0
 [1.3.0]: https://github.com/benshoesweb/day-wheel-card/releases/tag/v1.3.0
