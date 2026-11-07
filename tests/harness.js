@@ -115,7 +115,7 @@ window.makeHass = () => ({
   states: window.__states,
   themes: { darkMode: window.__dark },
   language: window.__lang,
-  locale: { language: window.__lang },
+  locale: { language: window.__lang, time_format: window.__tf || 'language' },
   config: { time_zone: 'Europe/Paris', unit_system: { temperature: '°C' } },
   user: { is_admin: window.__admin },
   connection: {

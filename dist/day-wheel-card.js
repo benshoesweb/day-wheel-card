@@ -23,6 +23,7 @@
  *   name              titre de la carte (en-tête standard de Home Assistant, comme les autres cartes)
  *   orientation       midnight_top (minuit en haut, défaut) | noon_top (midi en haut)
  *   snap              pas de réglage en minutes : 5 | 10 | 15 (défaut) | 30 | 60
+ *   time_format       24 (défaut : 19:30) | 12 (7:30 PM) | auto (réglage du profil Home Assistant)
  *   show_sun          true (défaut) : nuit grisée, lever et coucher du soleil
  *   show_days         true (défaut) : jours de la semaine (plannings et calendriers)
  *   show_legend       true (défaut) : légende des anneaux sous le cadran
@@ -56,6 +57,7 @@
   const WD_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const SKINS = ['metal', 'ha', 'glass', 'neumorph', 'brass', 'carbon', 'neon'];
   const SNAPS = [5, 10, 15, 30, 60];
+  const TIME_FORMATS = ['24', '12', 'auto'];
   const CARD_STYLES_LIST = ['standard', 'border_only', 'background_only', 'transparent'];
   const KINDS = { schedule: 'schedule', input_datetime: 'marker', time: 'marker', sensor: 'marker', calendar: 'calendar' };
   const PALETTE = ['#ff8a65', '#4fc3f7', '#aed581', '#ffd54f', '#ba68c8', '#4db6ac'];
@@ -235,6 +237,12 @@
     return short || L !== 'fr' ? `${n}%` : `${n}\u00a0%`;
   };
   const hhmm = (m) => (m >= DAY ? '24:00' : `${pad(m / 60)}:${pad(m % 60)}`);
+  // Format 12 heures : 19:30 -> « 7:30 » + « PM » ; la fin de journée (24:00) -> 12:00 AM
+  const hm12 = (m) => {
+    const t = Math.floor(m) % DAY;
+    const h = Math.floor(t / 60);
+    return { n: `${h % 12 || 12}:${pad(t % 60)}`, ap: h < 12 ? 'AM' : 'PM' };
+  };
   const dur = (m, L) => {
     const h = Math.floor(m / 60);
     const mn = Math.round(m % 60);
@@ -265,6 +273,7 @@
       orientation: 'Orientation', o_midnight_top: 'Minuit en haut (défaut)', o_noon_top: 'Midi en haut',
       palette: 'Couleurs des anneaux sans couleur choisie', pal_default: 'Palette de la carte (défaut)', pal_theme: 'Couleurs du thème HA', theme_ha: 'Thème HA',
       snap: 'Pas de réglage', min: 'min',
+      time_format: 'Format de l\'heure', tf_24: '24 heures (19:30, défaut)', tf_12: '12 heures (7:30 PM)', tf_auto: 'Auto (profil Home Assistant)',
       show_sun: 'Nuit grisée, lever et coucher du soleil', show_days: 'Jours de la semaine', show_legend: 'Légende sous le cadran',
       haptics: 'Retour haptique (vibration) sur écran tactile',
       sec_layers: 'Anneaux ({n}/6), de l\'extérieur vers l\'intérieur', add: '+ Ajouter', layer: 'Anneau', entity: 'Entité',
@@ -310,6 +319,7 @@
       orientation: 'Orientation', o_midnight_top: 'Midnight at the top (default)', o_noon_top: 'Noon at the top',
       palette: 'Colors of rings without a chosen color', pal_default: 'Card palette (default)', pal_theme: 'Home Assistant theme colors', theme_ha: 'HA theme',
       snap: 'Adjust step', min: 'min',
+      time_format: 'Time format', tf_24: '24-hour (19:30, default)', tf_12: '12-hour (7:30 PM)', tf_auto: 'Auto (Home Assistant profile)',
       show_sun: 'Shaded night, sunrise and sunset', show_days: 'Days of the week', show_legend: 'Legend below the dial',
       haptics: 'Haptic feedback (vibration) on touch screens',
       sec_layers: 'Rings ({n}/6), from outside to inside', add: '+ Add', layer: 'Ring', entity: 'Entity',
@@ -466,6 +476,10 @@
       radial-gradient(circle at 50% 35%, var(--dwc-c1), var(--dwc-c2)); }
     .wrap.skin-glass .center { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
     .c-big { font-size: clamp(18px, 9cqw, 34px); font-weight: 600; line-height: 1.05; font-variant-numeric: tabular-nums; }
+    .wrap.h12 .hour { font-size: 12px; }
+    .wrap.h12 .c-big { font-size: clamp(14px, calc(9cqw * var(--dwc-k, 1)), 34px); }
+    .wrap.h12 .c-lines { font-size: clamp(9px, calc(3.1cqw * var(--dwc-k, 1)), 13px); }
+    .c-big small.ap { font-size: .42em; font-weight: 600; margin-left: .18em; letter-spacing: .02em; opacity: .85; }
     .c-day { font-size: clamp(10px, 3.2cqw, 13px); opacity: .75; margin-top: 2px; text-transform: capitalize; }
     .c-lines { margin-top: 6px; font-size: clamp(10px, 3.1cqw, 13px); line-height: 1.3; display: flex; flex-direction: column; align-items: center; gap: 1px; }
     .c-line { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
@@ -935,6 +949,49 @@
 
     _rot() { return this._config.orientation === 'noon_top' ? 180 : 0; }
     _snap() { const s = Number(this._config.snap); return SNAPS.includes(s) ? s : 15; }
+
+    // ---------- Format de l'heure ----------
+    _timeFormat() { const f = String(this._config.time_format ?? '24'); return TIME_FORMATS.includes(f) ? f : '24'; }
+
+    // 12 heures ? (auto : réglage « Format de l'heure » du profil HA, sinon l'usage de la langue)
+    _h12() {
+      const f = this._timeFormat();
+      if (f !== 'auto') return f === '12';
+      const loc = (this._hass && this._hass.locale) || {};
+      if (String(loc.time_format) === '12') return true;
+      if (String(loc.time_format) === '24') return false;
+      try {
+        const lang = loc.time_format === 'system' ? undefined : (loc.language || (this._hass && this._hass.language) || undefined);
+        return new Intl.DateTimeFormat(lang, { hour: 'numeric' }).resolvedOptions().hour12 === true;
+      } catch (e) { return false; }
+    }
+
+    // Heure en texte : « 19:30 » ou « 7:30 PM »
+    _hm(m) {
+      if (!this._h12()) return hhmm(m);
+      const x = hm12(m);
+      return `${x.n} ${x.ap}`;
+    }
+
+    // Heure en grand (HTML) : AM / PM en petit pour tenir au centre
+    _hmBig(m) {
+      if (!this._h12()) return esc(hhmm(m));
+      const x = hm12(m);
+      return `${esc(x.n)}<small class="ap">${x.ap}</small>`;
+    }
+
+    // Plage : « 17:00 – 22:30 », « 5:00 – 10:30 PM », « 11:00 AM – 1:00 PM », « 8:00 AM – 12:00 AM »
+    _range(a, b, sep = ' – ') {
+      if (!this._h12()) return `${hhmm(a)}${sep}${hhmm(b)}`;
+      const x = hm12(a);
+      const y = hm12(b);
+      // AM / PM une seule fois si les deux heures sont dans la même demi-journée (pas pour une fin à minuit)
+      const same = Math.floor(a / 720) === Math.floor(b / 720) && b < DAY;
+      return same ? `${x.n}${sep}${y.n} ${y.ap}` : `${x.n} ${x.ap}${sep}${y.n} ${y.ap}`;
+    }
+
+    // Repère sur l'anneau : le chiffre seul (sa place sur le cadran dit le matin ou le soir)
+    _hmShort(m) { return this._h12() ? hm12(m).n : hhmm(m).replace(/^0/, ''); }
     _skin() { return SKINS.includes(this._config.knob_theme) ? this._config.knob_theme : 'metal'; }
 
     // ---------- Construction ----------
@@ -1066,6 +1123,9 @@
       const rot = this._rot();
       const g = this._geom();
       this._wrap.style.setProperty('--dwc-cw', `${r2(g.cw * 100)}%`);
+      // Taille relative du centre (1 = centre d'un cadran à 3 anneaux) : le texte en 12 heures s'y adapte
+      this._wrap.style.setProperty('--dwc-k', String(r2(clamp(g.cw / 0.48, 0.55, 1))));
+      this._wrap.classList.toggle('h12', this._h12());
 
       // Cadran : fond, nuit, graduations, heures
       const outerFace = 196;
@@ -1085,14 +1145,16 @@
         const [x1, y1] = pt(178, a);
         face += `<line class="tick${major ? ' major' : ''}" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"></line>`;
         if (major) {
-          const [tx, ty] = pt(188, a);
-          face += `<text class="hour${h % 6 === 0 ? ' major' : ''}" x="${tx}" y="${ty}">${h}</text>`;
+          // 12 heures : « 12a, 3a… 9p », écartés des graduations à gauche et à droite (texte plus large)
+          const lab = this._h12() ? `${h % 12 || 12}${h < 12 ? 'a' : 'p'}` : String(h);
+          const [tx, ty] = pt(this._h12() ? 188 + Math.abs(Math.cos((a * Math.PI) / 180)) * Math.max(0, lab.length * 3.4 - 6) : 188, a);
+          face += `<text class="hour${h % 6 === 0 ? ' major' : ''}" x="${tx}" y="${ty}">${lab}</text>`;
         }
       }
       if (sun) {
         [sun.rise, sun.set].forEach((m) => {
           const [x, y] = pt(175, angleOf(m, rot));
-          face += `<circle class="sunmark" cx="${x}" cy="${y}" r="3.5"><title>${esc(hhmm(m))}</title></circle>`;
+          face += `<circle class="sunmark" cx="${x}" cy="${y}" r="3.5"><title>${esc(this._hm(m))}</title></circle>`;
         });
       }
 
@@ -1119,7 +1181,7 @@
             const title = kind === 'calendar' ? `${b.title} · ` : '';
             const v = this._val(b, spec);
             const vt = v == null ? '' : ` · ${fmtVal(L, v, spec)}`;
-            rings += `<path class="${cls}" data-li="${li}" data-i="${i}" d="${arcPath(R.r, m0, Math.max(m1, m0 + 0.01), rot)}" stroke-width="${R.w}" style="stroke:${col};--dwc-glow:${col}"><title>${esc(title + hhmm(b.s))} – ${esc(hhmm(b.e))}${esc(vt)}</title></path>`;
+            rings += `<path class="${cls}" data-li="${li}" data-i="${i}" d="${arcPath(R.r, m0, Math.max(m1, m0 + 0.01), rot)}" stroke-width="${R.w}" style="stroke:${col};--dwc-glow:${col}"><title>${esc(title + this._range(b.s, b.e))}${esc(vt)}</title></path>`;
             if (v != null) {
               // Valeur écrite sur la plage, si elle y tient
               const label = fmtVal(L, v, spec, true);
@@ -1147,12 +1209,12 @@
             const [x, y] = pt(R.r, angleOf(mk.m, rot));
             const ro = !mk.editable || !this._canSet(layer.entity);
             const rd = R.w / 2 + 3;
-            const label = hhmm(mk.m).replace(/^0/, '');
+            const label = this._hmShort(mk.m);
             const fs = r2(Math.min(10, (rd * 2 - 3) / (label.length * 0.58)));
             top += `<g class="marker${ro ? ' ro' : ''}${this._drag && this._drag.li === li ? ' dragging' : ''}" data-li="${li}">
               <circle class="m-dot" cx="${x}" cy="${y}" r="${r2(rd)}" style="fill:${col}"></circle>
               ${fs >= 7 ? `<text class="label-ring" x="${x}" y="${y}" style="font-size:${fs}px">${esc(label)}</text>` : ''}
-              <title>${esc(this._name(layer))} · ${esc(hhmm(mk.m))}</title></g>`;
+              <title>${esc(this._name(layer))} · ${esc(this._hm(mk.m))}</title></g>`;
           }
         }
       });
@@ -1326,7 +1388,7 @@
               week += tot;
               const chips = blocks.map((b) => {
                 const v = this._val(b, spec);
-                return `<span class="sm-chip">${esc(hhmm(b.s))}–${esc(hhmm(b.e))}${v == null ? '' : `<em>${esc(fmtVal(L, v, spec))}</em>`}</span>`;
+                return `<span class="sm-chip">${esc(this._range(b.s, b.e, '–'))}${v == null ? '' : `<em>${esc(fmtVal(L, v, spec))}</em>`}</span>`;
               }).join('');
               return `<div class="sm-day${d === shown.now.day ? ' today' : ''}" data-day="${d}"><span class="sm-dn">${esc(dayLabel(d))}</span>
                 <div class="sm-chips">${chips || `<span class="sm-none">${esc(tr(L, 'no_range'))}</span>`}</div><span class="sm-tot">${tot ? esc(dur(tot, L)) : ''}</span></div>`;
@@ -1336,7 +1398,7 @@
         } else if (kind === 'calendar') {
           const ev = (this._cal[layer.entity] && this._cal[layer.entity].events) || [];
           body = `<div class="sm-foot" style="margin:0 0 4px">${esc(tr(L, 'events_of', { d: longDate }))}</div>`
-            + (ev.length ? `<div class="sm-chips" style="padding:0 8px">${ev.map((x) => `<span class="sm-chip">${esc(hhmm(x.s))}–${esc(hhmm(x.e))}<em>${esc(x.title)}</em></span>`).join('')}</div>`
+            + (ev.length ? `<div class="sm-chips" style="padding:0 8px">${ev.map((x) => `<span class="sm-chip">${esc(this._range(x.s, x.e, '–'))}<em>${esc(x.title)}</em></span>`).join('')}</div>`
               : `<div class="sm-row sm-none">${esc(tr(L, 'no_event'))}</div>`);
         } else if (kind === 'marker') {
           const st = this._hass.states[layer.entity];
@@ -1346,11 +1408,11 @@
             const d = st && new Date(String(st.state).replace(' ', 'T'));
             if (d && !Number.isNaN(d.getTime())) {
               try {
-                txt = new Intl.DateTimeFormat(loc, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: domain === 'sensor' ? this._tz() : 'UTC' })
+                txt = new Intl.DateTimeFormat(loc, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hour12: this._h12(), timeZone: domain === 'sensor' ? this._tz() : 'UTC' })
                   .format(domain === 'sensor' ? d : new Date(`${String(st.state).replace(' ', 'T')}Z`));
               } catch (e) { txt = st.state; }
             }
-          } else if (mk) txt = hhmm(mk.m);
+          } else if (mk) txt = this._hm(mk.m);
           body = txt ? `<div class="sm-row"><b>${esc(txt)}</b></div>` : `<div class="sm-row sm-none">${esc(tr(L, 'no_time'))}</div>`;
         } else body = `<div class="sm-row sm-none">${esc(tr(L, 'unsupported'))}</div>`;
         return `<section class="sm-sec" style="--c:${col}"><div class="sm-h"><ha-icon icon="${esc(this._icon(layer))}" style="color:${col}"></ha-icon><b>${esc(this._name(layer))}</b><span class="sm-kind">${esc(sub)}</span></div>${body}</section>`;
@@ -1363,7 +1425,8 @@
         [tr(L, 's_style'), tr(L, `skin_${this._skin()}`)],
         [tr(L, 's_palette'), tr(L, c.palette === 'theme' ? 'pal_theme' : 'pal_default')],
         [tr(L, 's_theme'), tr(L, c.theme === 'dark' ? 'theme_dark' : c.theme === 'light' ? 'theme_light' : 'theme_auto')],
-        ...(sun ? [[tr(L, 's_sun'), tr(L, 'sun_line', { a: hhmm(sun.rise), b: hhmm(sun.set) })]] : []),
+        [tr(L, 'time_format'), tr(L, `tf_${this._timeFormat()}`)],
+        ...(sun ? [[tr(L, 's_sun'), tr(L, 'sun_line', { a: this._hm(sun.rise), b: this._hm(sun.set) })]] : []),
         ...(this._hasKind('schedule') ? [[tr(L, 's_rights'), tr(L, this._canEdit() ? 'r_admin' : 'r_read')]] : []),
       ];
       const html = `${secs}<section class="sm-sec"><div class="sm-h"><ha-icon icon="mdi:cog-outline"></ha-icon><b>${esc(tr(L, 'settings'))}</b></div>
@@ -1411,11 +1474,11 @@
           const next = blocks.find((b) => b.s > t);
           const spec = this._spec(layer);
           const vOf = (b) => { const v = this._val(b, spec); return v == null ? '' : fmtVal(L, v, spec, true); };
-          if (cur) { const val = vOf(cur); out.push({ col, name, icon: this._icon(layer), time: `→ ${hhmm(cur.e)}`, val, text: `${name} · ${val ? `${val} · ` : ''}${tr(L, 'until', { t: hhmm(cur.e) })}`, on: true }); }
-          else if (next) { const val = vOf(next); out.push({ col, name, icon: this._icon(layer), time: hhmm(next.s), val, text: `${name} · ${tr(L, 'at', { t: hhmm(next.s) })}${val ? ` · ${val}` : ''}` }); }
+          if (cur) { const val = vOf(cur); out.push({ col, name, icon: this._icon(layer), time: `→ ${this._hm(cur.e)}`, val, text: `${name} · ${val ? `${val} · ` : ''}${tr(L, 'until', { t: this._hm(cur.e) })}`, on: true }); }
+          else if (next) { const val = vOf(next); out.push({ col, name, icon: this._icon(layer), time: this._hm(next.s), val, text: `${name} · ${tr(L, 'at', { t: this._hm(next.s) })}${val ? ` · ${val}` : ''}` }); }
         } else if (kind === 'marker') {
           const mk = this._markerTime(layer, shown);
-          if (mk && (!shown.today || mk.m >= shown.now.min)) out.push({ col, name, icon: this._icon(layer), time: hhmm(mk.m), text: `${name} · ${hhmm(mk.m)}` });
+          if (mk && (!shown.today || mk.m >= shown.now.min)) out.push({ col, name, icon: this._icon(layer), time: this._hm(mk.m), text: `${name} · ${this._hm(mk.m)}` });
         }
       });
       return out;
@@ -1430,9 +1493,9 @@
           const b = d.blocks[d.i];
           const spec = this._spec(layer);
           const v = this._val(b, spec);
-          html = `<div class="c-day">${esc(this._name(layer))}</div><div class="c-big">${esc(hhmm(b.s))}<br>${esc(hhmm(b.e))}</div><div class="c-hint">${esc(dur(b.e - b.s, L))}${v == null ? '' : ` · ${esc(fmtVal(L, v, spec))}`}</div>`;
+          html = `<div class="c-day">${esc(this._name(layer))}</div><div class="c-big">${this._hmBig(b.s)}<br>${this._hmBig(b.e)}</div><div class="c-hint">${esc(dur(b.e - b.s, L))}${v == null ? '' : ` · ${esc(fmtVal(L, v, spec))}`}</div>`;
         } else {
-          html = `<div class="c-day">${esc(this._name(layer))}</div><div class="c-big">${esc(hhmm(d.m))}</div>`;
+          html = `<div class="c-day">${esc(this._name(layer))}</div><div class="c-big">${this._hmBig(d.m)}</div>`;
         }
       } else if (this._sel) {
         const layer = this._layers()[this._sel.li];
@@ -1454,7 +1517,7 @@
           hint = can || this._geom().compact ? dur(b.e - b.s, L) : `${dur(b.e - b.s, L)} · ${tr(L, 'admin_only')}`;
         }
         html = `<div class="c-day">${esc(title)}</div>
-          <div class="c-big" style="font-size:clamp(13px,5.4cqw,22px);white-space:nowrap">${esc(hhmm(b.s))} – ${esc(hhmm(b.e))}</div>
+          <div class="c-big" style="font-size:${this._h12() ? 'clamp(12px,4.4cqw,18px)' : 'clamp(13px,5.4cqw,22px)'};white-space:nowrap">${esc(this._range(b.s, b.e))}</div>
           ${val}
           <div class="c-hint">${esc(hint)}</div>
           <div class="c-btns">
@@ -1462,11 +1525,11 @@
             <button class="c-btn" data-act="close" title="${esc(tr(L, 'close'))}" aria-label="${esc(tr(L, 'close'))}"><ha-icon icon="mdi:close"></ha-icon></button>
           </div>`;
       } else {
-        const big = shown.today ? hhmm(shown.now.min) : tr(L, 'days')[shown.day];
+        const bigHtml = shown.today ? this._hmBig(shown.now.min) : esc(tr(L, 'days')[shown.day]);
         const sub = shown.today ? tr(L, 'today') : (shown.offset === 1 ? tr(L, 'tomorrow') : '');
         const compact = this._geom().compact;
         const lines = this._lines(shown).slice(0, compact ? 0 : 3);
-        html = `<div class="c-big">${esc(big)}</div>
+        html = `<div class="c-big">${bigHtml}</div>
           ${sub ? `<div class="c-day">${esc(sub)}</div>` : ''}
           ${compact ? '' : `<div class="c-lines">${lines.length ? lines.map((l) => `<div class="c-line${l.on ? ' on' : ''}" title="${esc(l.text)}"><ha-icon icon="${esc(l.icon)}" style="color:${l.col}"></ha-icon><b>${esc(l.time)}</b>${l.val ? `<span class="c-v">${esc(l.val)}</span>` : ''}</div>`).join('') : `<div class="c-line">${esc(tr(L, 'nothing'))}</div>`}</div>`}`;
       }
@@ -1850,7 +1913,7 @@
     .auto .a-line { color: var(--primary-text-color); }
   ` + AUTO_STYLES;
   const DEFAULT_TRUE = ['show_sun', 'show_days', 'show_legend', 'haptics', 'summary', 'create_automation'];
-  const SELECT_DEFAULTS = { theme: 'auto', knob_theme: 'metal', orientation: 'midnight_top', snap: '15', palette: 'default', card_style: 'standard' };
+  const SELECT_DEFAULTS = { theme: 'auto', knob_theme: 'metal', orientation: 'midnight_top', snap: '15', palette: 'default', card_style: 'standard', time_format: '24' };
   const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(l)}</option>`).join('');
   const toHex = (v) => {
     const s = String(v || '').trim();
@@ -1962,6 +2025,7 @@
               <div class="field"><label>${esc(t('knob_theme'))}</label><select data-field="knob_theme">${opts(SKINS.map((k) => [k, t(`skin_${k}`)]), SKINS.includes(c.knob_theme) ? c.knob_theme : 'metal')}</select></div>
               <div class="field"><label>${esc(t('orientation'))}</label><select data-field="orientation">${opts([['midnight_top', t('o_midnight_top')], ['noon_top', t('o_noon_top')]], c.orientation === 'noon_top' ? 'noon_top' : 'midnight_top')}</select></div>
               <div class="field"><label>${esc(t('palette'))}</label><select data-field="palette">${opts([['default', t('pal_default')], ['theme', t('pal_theme')]], c.palette === 'theme' ? 'theme' : 'default')}</select></div>
+              <div class="field"><label>${esc(t('time_format'))}</label><select data-field="time_format">${opts(TIME_FORMATS.map((k) => [k, t(`tf_${k}`)]), TIME_FORMATS.includes(String(c.time_format)) ? String(c.time_format) : '24')}</select></div>
               <div class="field"><label>${esc(t('snap'))}</label><select data-field="snap">${opts(SNAPS.map((s) => [String(s), `${s} ${t('min')}`]), SNAPS.includes(Number(c.snap)) ? String(c.snap) : '15')}</select></div>
             </div>
             <div class="switches">${sw('show_sun', t('show_sun'))}${sw('show_days', t('show_days'))}${sw('show_legend', t('show_legend'))}${sw('haptics', t('haptics'))}${sw('summary', t('show_summary'))}${sw('create_automation', t('create_automation'))}</div>

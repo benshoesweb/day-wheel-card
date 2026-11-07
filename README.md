@@ -31,6 +31,7 @@ The card and its visual editor follow Home Assistant's language (English or Fren
 - **Night and sun**: the hour ring darkens from sunset to sunrise.
 - **Current-time hand** and, in the center, what's on and what's next ("→ 19:00" = until 19:00).
 - **Server time**: the dial follows Home Assistant's time zone, not the tablet's.
+- **24-hour (default) or 12-hour time** (7:30 PM), or automatic, following each user's Home Assistant profile.
 - **Live updates**: a schedule changed elsewhere is redrawn right away.
 - **7 center styles** (metal, Home Assistant theme, glass, soft, brass, carbon, neon), noon or midnight at the top, **haptic feedback**, light or dark theme.
 - **Follows the Home Assistant theme**: with the `ha` style, the whole dial (face, empty rings, ticks, day / night ring, center, hand) uses the active theme's colors, and `palette: theme` gives the rings the theme's colors. Theme changes apply instantly.
@@ -158,6 +159,7 @@ layers:
 | `name` | card title, using Home Assistant's standard card title (it follows the theme: `--ha-card-header-font-size`, `--ha-card-header-color`…) | none |
 | `orientation` | `midnight_top` (midnight at the top), `noon_top` (noon at the top) | `midnight_top` |
 | `snap` | adjust step in minutes: `5`, `10`, `15`, `30`, `60` | `15` |
+| `time_format` | `24` (19:30), `12` (7:30 PM, dial numbered 12a … 9p), `auto` (each user's **Time format** setting in their Home Assistant profile) | `24` |
 | `show_sun` | day / night ring, sunrise and sunset | `true` |
 | `show_days` | days of the week (with a schedule or a calendar) | `true` |
 | `show_legend` | legend under the dial | `true` |
@@ -215,7 +217,7 @@ The card goes well with [Radial Selector Card](https://github.com/benshoesweb/ra
 ```bash
 npm ci
 npx playwright install chromium
-npm test          # 237 checks in Chrome: display, drag, create, delete, values, summary, automations, rights, editor…
+npm test          # 257 checks in Chrome: display, drag, create, delete, values, summary, automations, rights, editor…
 ```
 
 The tests also run on GitHub on every change (**Tests** workflow). History: [CHANGELOG.md](CHANGELOG.md).
@@ -247,6 +249,7 @@ La carte et son éditeur visuel suivent la langue de Home Assistant (français o
 - **Nuit et soleil** : la couronne des heures s'assombrit du coucher au lever du soleil.
 - **Aiguille** de l'heure actuelle et, au centre, ce qui est en cours et ce qui arrive (« → 19:00 » = jusqu'à 19:00).
 - **Heure du serveur** : le cadran suit le fuseau de Home Assistant, pas celui de la tablette.
+- **Heure sur 24 heures (par défaut) ou 12 heures** (7:30 PM), ou automatique, selon le profil Home Assistant de chaque utilisateur.
 - Mises à jour **en direct** : un planning modifié ailleurs se redessine aussitôt.
 - **7 styles de centre** (métal, thème Home Assistant, verre, doux, laiton, carbone, néon), midi ou minuit en haut, **retour haptique**, thème clair ou sombre.
 - **Suit le thème Home Assistant** : avec le style `ha`, tout le cadran (fond, anneaux vides, graduations, couronne jour / nuit, centre, aiguille) prend les couleurs du thème actif, et `palette: theme` donne aux anneaux les couleurs du thème. Le changement de thème est immédiat.
@@ -374,6 +377,7 @@ layers:
 | `name` | titre de la carte, avec le titre standard des cartes Home Assistant (il suit le thème : `--ha-card-header-font-size`, `--ha-card-header-color`…) | aucun |
 | `orientation` | `midnight_top` (minuit en haut), `noon_top` (midi en haut) | `midnight_top` |
 | `snap` | pas de réglage en minutes : `5`, `10`, `15`, `30`, `60` | `15` |
+| `time_format` | `24` (19:30), `12` (7:30 PM, cadran numéroté 12a … 9p), `auto` (réglage **Format de l'heure** du profil Home Assistant de chaque utilisateur) | `24` |
 | `show_sun` | couronne jour / nuit, lever et coucher du soleil | `true` |
 | `show_days` | jours de la semaine (avec un planning ou un calendrier) | `true` |
 | `show_legend` | légende sous le cadran | `true` |
@@ -431,7 +435,7 @@ La carte va bien avec [Radial Selector Card](https://github.com/benshoesweb/radi
 ```bash
 npm ci
 npx playwright install chromium
-npm test          # 237 vérifications dans Chrome : affichage, glisser, créer, supprimer, valeurs, résumé, automatisations, droits, éditeur…
+npm test          # 257 vérifications dans Chrome : affichage, glisser, créer, supprimer, valeurs, résumé, automatisations, droits, éditeur…
 ```
 
 Les tests tournent aussi sur GitHub à chaque modification (workflow **Tests**). Historique : [CHANGELOG.md](CHANGELOG.md).
