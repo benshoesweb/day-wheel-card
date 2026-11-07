@@ -124,7 +124,7 @@ The card is in the official HACS catalog, built into Home Assistant since 2026.1
 - **Home Assistant 2026.11 and later**: **Settings › Marketplace**, search for "Day Wheel Card", then **Download**.
 - **Earlier versions, with HACS installed**: **HACS**, search for "Day Wheel Card", then **Download**.
 
-The **Open in Home Assistant** button above leads straight to the card. The dashboard resource is added automatically, and new versions are offered as updates.
+The **Open in Home Assistant** button above leads straight to the card: in the **Marketplace** on Home Assistant 2026.11 and later, in **HACS** on earlier versions. The dashboard resource is added automatically, and new versions are offered as updates.
 
 Compatibility: tested with Home Assistant 2026.11 (schedules, calendars, times, editor and blueprint). The blueprint needs Home Assistant 2024.10 or later.
 
@@ -340,7 +340,7 @@ La carte fait partie du catalogue officiel de HACS, intégré à Home Assistant 
 - **Home Assistant 2026.11 et plus** : **Paramètres › Marketplace**, cherchez « Day Wheel Card », puis **Télécharger**.
 - **Versions précédentes, avec HACS installé** : **HACS**, cherchez « Day Wheel Card », puis **Télécharger**.
 
-Le bouton **Open in Home Assistant** en haut de la page mène directement à la carte. La ressource du tableau de bord est ajoutée automatiquement, et les nouvelles versions sont proposées en mise à jour.
+Le bouton **Open in Home Assistant** en haut de la page mène directement à la carte : dans la **Marketplace** avec Home Assistant 2026.11 et plus, dans **HACS** avec les versions précédentes. La ressource du tableau de bord est ajoutée automatiquement, et les nouvelles versions sont proposées en mise à jour.
 
 Compatibilité : testée avec Home Assistant 2026.11 (plannings, calendriers, heures, éditeur et blueprint). Le blueprint demande Home Assistant 2024.10 ou plus.
 
