@@ -4,7 +4,7 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 
 *Roue des 24 heures pour les tableaux de bord Home Assistant : plannings, réveils, rendez-vous et calendriers sur un cadran, modifiables au doigt.*
 
-**[English](#english)** · **[Français](#français)**
+*Unfold your language below the preview · Dépliez votre langue sous l'aperçu.*
 
 [![Open in Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=benshoesweb&repository=day-wheel-card&category=plugin)
 [![Validate](https://github.com/benshoesweb/day-wheel-card/actions/workflows/validate.yml/badge.svg)](https://github.com/benshoesweb/day-wheel-card/actions/workflows/validate.yml)
@@ -12,9 +12,8 @@ A 24-hour wheel for Home Assistant dashboards: your schedules, alarms, appointme
 
 ![Preview](https://raw.githubusercontent.com/benshoesweb/day-wheel-card/main/images/apercu-sombre.png)
 
----
-
-## English
+<details>
+<summary><h2>English</h2> (click to unfold)</summary>
 
 The card and its visual editor follow Home Assistant's language (English or French).
 
@@ -230,9 +229,10 @@ The tests also run on GitHub on every change (**Tests** workflow). History: [CHA
 
 The **Release** workflow attaches the card file to the release; the Marketplace then offers it as an update.
 
----
+</details>
 
-## Français
+<details>
+<summary><h2>Français</h2> (cliquer pour déplier)</summary>
 
 La carte et son éditeur visuel suivent la langue de Home Assistant (français ou anglais).
 
@@ -447,3 +447,5 @@ Les tests tournent aussi sur GitHub à chaque modification (workflow **Tests**).
 3. **Ensuite seulement**, créez la release GitHub `vX.Y.Z` sur `main` (ou `./scripts/release.sh vX.Y.Z`) : le tag contient alors le bon CHANGELOG.
 
 Le workflow **Release** joint le fichier de la carte à la release ; la Marketplace la propose ensuite en mise à jour.
+
+</details>
